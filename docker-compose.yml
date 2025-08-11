@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Code2API Backend
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    volumes:
+      - ./generated:/app/generated
+      - ./examples:/app/examples
+    restart: unless-stopped
+    container_name: code2api_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    container_name: code2api_frontend
+
+  # Optional: Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    container_name: code2api_redis
+    command: redis-server --appendonly yes
+
+  # Optional: PostgreSQL for data persistence
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: code2api
+      POSTGRES_USER: code2api
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-code2api_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    container_name: code2api_postgres
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: code2api_network
