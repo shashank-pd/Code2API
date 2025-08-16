@@ -71,16 +71,18 @@ class AIAnalyzer:
         Docstring: {func.docstring}
         Is Async: {func.is_async}
         
-        Please provide:
-        1. Should this be an API endpoint? (yes/no)
-        2. HTTP method (GET/POST/PUT/DELETE)
-        3. Endpoint path suggestion
-        4. Brief description
-        5. Does it need authentication? (yes/no)
-        6. Input validation requirements
-        7. Expected response format
+        Please respond with ONLY a valid JSON object containing:
+        {{
+            "should_expose_as_api_endpoint": "yes" or "no",
+            "http_method": "GET", "POST", "PUT", or "DELETE",
+            "endpoint_path": "/suggested-path",
+            "description": "Brief description of what this endpoint does",
+            "requires_authentication": "yes" or "no",
+            "input_validation_requirements": "Description of validation needed",
+            "expected_response_format": {{"status": "success", "data": "..."}}
+        }}
         
-        Respond in JSON format.
+        Do not include any markdown formatting or additional text. Return only the JSON object.
         """
         
         try:
@@ -128,7 +130,7 @@ class AIAnalyzer:
                     analysis = json.loads(json_content)
                 except json.JSONDecodeError as json_error:
                     print(f"JSON parsing error for function {func.name}: {json_error}")
-                    print(f"Attempted to parse: {json_content[:500]}...")
+                    print(f"Attempted to parse: {json_content[:1000]}...")
                     # Try to extract JSON from the content more aggressively
                     try:
                         # Look for the first complete JSON object
@@ -147,7 +149,19 @@ class AIAnalyzer:
                             analysis = json.loads(json_content)
                     except (json.JSONDecodeError, ValueError) as e:
                         print(f"Failed to extract valid JSON for function {func.name}: {e}")
-                        return None
+                        # Return a fallback analysis for functions that seem API-worthy
+                        if any(keyword in func.name.lower() for keyword in ['get', 'post', 'put', 'delete', 'create', 'update', 'list', 'view', 'show']):
+                            analysis = {
+                                "should_expose_as_api_endpoint": "yes",
+                                "http_method": "GET" if any(kw in func.name.lower() for kw in ['get', 'list', 'view', 'show']) else "POST",
+                                "endpoint_path": f"/{func.name.lower().replace('_', '-')}",
+                                "description": f"Auto-generated endpoint for {func.name}",
+                                "requires_authentication": "no",
+                                "input_validation_requirements": "Standard validation",
+                                "expected_response_format": {"status": "success", "data": {}}
+                            }
+                        else:
+                            return None
                 
                 # Check multiple possible field names for compatibility
                 should_be_endpoint = (

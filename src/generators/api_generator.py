@@ -26,36 +26,36 @@ class APIGenerator:
         
         # Generate main API file
         main_file = self._generate_main_file(analysis, project_name)
-        with open(output_dir / "main.py", "w") as f:
+        with open(output_dir / "main.py", "w", encoding='utf-8') as f:
             f.write(main_file)
         
         # Generate models file
         models_file = self._generate_models_file(analysis)
-        with open(output_dir / "models.py", "w") as f:
+        with open(output_dir / "models.py", "w", encoding='utf-8') as f:
             f.write(models_file)
         
         # Generate authentication module
         auth_file = self._generate_auth_file(analysis)
-        with open(output_dir / "auth.py", "w") as f:
+        with open(output_dir / "auth.py", "w", encoding='utf-8') as f:
             f.write(auth_file)
         
         # Generate requirements file
         requirements = self._generate_requirements(analysis)
-        with open(output_dir / "requirements.txt", "w") as f:
+        with open(output_dir / "requirements.txt", "w", encoding='utf-8') as f:
             f.write(requirements)
         
         # Generate README
         readme = self._generate_readme(analysis, project_name)
-        with open(output_dir / "README.md", "w") as f:
+        with open(output_dir / "README.md", "w", encoding='utf-8') as f:
             f.write(readme)
         
         # Generate Docker files
         dockerfile = self._generate_dockerfile()
-        with open(output_dir / "Dockerfile", "w") as f:
+        with open(output_dir / "Dockerfile", "w", encoding='utf-8') as f:
             f.write(dockerfile)
         
         docker_compose = self._generate_docker_compose(project_name)
-        with open(output_dir / "docker-compose.yml", "w") as f:
+        with open(output_dir / "docker-compose.yml", "w", encoding='utf-8') as f:
             f.write(docker_compose)
         
         return str(output_dir)
@@ -422,7 +422,7 @@ curl -X GET "http://localhost:8000/protected-endpoint" \\
 """
         
         for endpoint in endpoints:
-            auth_required = "✅" if endpoint.get("needs_auth") else "❌"
+            auth_required = "Yes" if endpoint.get("needs_auth") else "No"
             readme += f"| {endpoint['http_method']} | `{endpoint['endpoint_path']}` | {endpoint['description']} | {auth_required} |\n"
         
         readme += f"""
