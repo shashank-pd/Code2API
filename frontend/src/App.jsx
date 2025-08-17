@@ -2,7 +2,6 @@ import React, { useState, useRef, useMemo } from "react";
 import axios from "axios";
 import SwaggerUI from "swagger-ui-react";
 import "swagger-ui-react/swagger-ui.css";
-import { cn } from "./lib/utils";
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
 import EditorPanel from "./components/panels/EditorPanel";
@@ -314,11 +313,17 @@ class UserManager {
             setInputMode={setInputMode}
           />
           <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-6">
-            <div className="mb-4 rounded-lg border bg-card p-4">
-              <h1 className="text-2xl font-bold">🚀 Code2API</h1>
-              <p className="text-sm text-muted-foreground">
-                AI-powered system that converts source code into APIs
-              </p>
+            <div className="mb-4 rounded-lg border bg-card p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    Code2API
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    AI-powered system that converts source code into APIs
+                  </p>
+                </div>
+              </div>
             </div>
 
             {activeTab === "editor" && (

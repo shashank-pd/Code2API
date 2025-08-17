@@ -1,6 +1,6 @@
-import React from "react";
 import { Button } from "../ui/Button";
 import ThemeToggle from "./ThemeToggle";
+import { GitBranch, Code2, Upload, Play } from "lucide-react";
 
 function Topbar({
   onUploadClick,
@@ -14,26 +14,27 @@ function Topbar({
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4">
         <div className="md:hidden text-base font-semibold">Code2API</div>
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden sm:flex rounded-md border p-1">
+          <div className="hidden sm:flex rounded-md border p-1 bg-card">
             <Button
               size="sm"
               variant={inputMode === "code" ? "default" : "ghost"}
               onClick={() => setInputMode("code")}
             >
-              Code
+              <Code2 className="mr-1 h-4 w-4" /> Code
             </Button>
             <Button
               size="sm"
               variant={inputMode === "repo" ? "default" : "ghost"}
               onClick={() => setInputMode("repo")}
             >
-              Repo
+              <GitBranch className="mr-1 h-4 w-4" /> Repo
             </Button>
           </div>
           <Button size="sm" variant="secondary" onClick={onUploadClick}>
-            Upload
+            <Upload className="mr-1 h-4 w-4" /> Upload
           </Button>
           <Button size="sm" onClick={onAnalyze} disabled={analyzing}>
+            <Play className="mr-1 h-4 w-4" />{" "}
             {analyzing ? "Analyzing..." : "Analyze"}
           </Button>
           <ThemeToggle />

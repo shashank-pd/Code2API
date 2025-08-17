@@ -1,5 +1,6 @@
-import React from "react";
 import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import { Download } from "lucide-react";
 
 export default function ResultsPanel({ analysis, onDownload }) {
   if (!analysis) return null;
@@ -12,7 +13,9 @@ export default function ResultsPanel({ analysis, onDownload }) {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Analysis Results</h2>
         {analysis.generated_api_path && (
-          <Button onClick={onDownload}>Download Generated API</Button>
+          <Button onClick={onDownload}>
+            <Download className="mr-1 h-4 w-4" /> Download Generated API
+          </Button>
         )}
       </div>
 
@@ -169,11 +172,7 @@ function EndpointCard({ endpoint }) {
   return (
     <div className="space-y-1 rounded-md border p-3">
       <div className="flex items-center gap-2">
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-bold text-white ${color}`}
-        >
-          {endpoint.http_method}
-        </span>
+        <Badge className={`${color}`}>{endpoint.http_method}</Badge>
         <code className="text-sm font-mono text-blue-500">
           {endpoint.endpoint_path}
         </code>
@@ -181,14 +180,10 @@ function EndpointCard({ endpoint }) {
       <p className="text-sm text-muted-foreground">{endpoint.description}</p>
       <div className="flex gap-2">
         {endpoint.needs_auth && (
-          <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">
-            🔒 Auth Required
-          </span>
+          <Badge variant="destructive">Auth Required</Badge>
         )}
         {endpoint.class_name && (
-          <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">
-            📦 {endpoint.class_name}
-          </span>
+          <Badge className="bg-purple-500">{endpoint.class_name}</Badge>
         )}
       </div>
     </div>

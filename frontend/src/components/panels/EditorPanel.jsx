@@ -1,7 +1,8 @@
-import React from "react";
 import MonacoEditor from "@monaco-editor/react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { Label } from "../ui/Label";
+import { Upload, Play } from "lucide-react";
 
 const SUPPORTED_LANGUAGES = {
   python: { label: "Python", extension: ".py", mode: "python" },
@@ -25,8 +26,9 @@ export default function EditorPanel({
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Language</label>
+          <Label htmlFor="language">Language</Label>
           <select
+            id="language"
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -39,8 +41,9 @@ export default function EditorPanel({
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Filename</label>
+          <Label htmlFor="filename">Filename</Label>
           <Input
+            id="filename"
             value={filename}
             onChange={(e) => setFilename(e.target.value)}
           />
@@ -58,14 +61,15 @@ export default function EditorPanel({
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
           >
-            Upload Files
+            <Upload className="mr-1 h-4 w-4" /> Upload Files
           </Button>
           <Button onClick={onAnalyze} disabled={analyzing}>
+            <Play className="mr-1 h-4 w-4" />{" "}
             {analyzing ? "Analyzing..." : "Analyze Code"}
           </Button>
         </div>
       </div>
-      <div className="rounded-lg border">
+      <div className="rounded-lg border overflow-hidden">
         <MonacoEditor
           height="520px"
           language={SUPPORTED_LANGUAGES[language].mode}

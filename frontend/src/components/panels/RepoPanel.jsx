@@ -1,6 +1,7 @@
-import React from "react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { Label } from "../ui/Label";
+import { Play } from "lucide-react";
 
 export default function RepoPanel({
   repoUrl,
@@ -14,18 +15,18 @@ export default function RepoPanel({
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">
-            Repository URL
-          </label>
+          <Label htmlFor="repo-url">Repository URL</Label>
           <Input
+            id="repo-url"
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
             placeholder="https://github.com/owner/repo or owner/repo"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Branch</label>
+          <Label htmlFor="branch">Branch</Label>
           <Input
+            id="branch"
             value={branch}
             onChange={(e) => setBranch(e.target.value)}
             placeholder="main"
@@ -33,6 +34,7 @@ export default function RepoPanel({
         </div>
       </div>
       <Button className="w-full" onClick={onAnalyze} disabled={analyzing}>
+        <Play className="mr-1 h-4 w-4" />
         {analyzing ? "Analyzing Repository..." : "Analyze Repository"}
       </Button>
       <div className="rounded-md border p-4">
