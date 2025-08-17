@@ -151,20 +151,21 @@ class UserManager {
       let response;
 
       if (inputMode === "code") {
-        response = await axios.post("/api/analyze", {
-          code,
-          language,
-          filename,
-        });
+        // Not supported in current backend; prompt user
+        throw new Error(
+          "Direct code analysis is not supported yet. Use repository mode."
+        );
       } else {
-        response = await axios.post("/api/analyze-repo", {
+        response = await axios.post("/api/run-workflow", {
           repo_url: repoUrl,
-          branch: branch || "main",
-          max_files: 50,
         });
       }
 
-      setAnalysis(response.data);
+      setAnalysis({
+        success: true,
+        analysis: { api_endpoints: [] },
+        ...response.data,
+      });
       setActiveTab("results");
     } catch (err) {
       setError(err.response?.data?.detail || "Error analyzing code");
@@ -216,14 +217,18 @@ class UserManager {
     if (!analysis?.generated_api_path) return;
 
     try {
-      const projectName = analysis.generated_api_path.split("/").pop();
-      const response = await axios.get(`/download/${projectName}`, {
+      const response = await axios.get(`/api/download-by-path`, {
+        params: { path: analysis.generated_api_path },
         responseType: "blob",
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
+      const projectName = analysis.generated_api_path
+        .replace(/\\/g, "/")
+        .split("/")
+        .pop();
       link.setAttribute("download", `${projectName}.zip`);
       document.body.appendChild(link);
       link.click();
@@ -363,9 +368,9 @@ class UserManager {
               <ResultsPanel analysis={analysis} onDownload={downloadAPI} />
             )}
 
-            {activeTab === "swagger" && analysis?.analysis?.api_endpoints && (
+            {activeTab === "swagger" && analysis?.openapi && (
               <div className="rounded-lg border bg-card p-2">
-                <SwaggerUI spec={generateSwaggerSpec()} />
+                <SwaggerUI spec={analysis.openapi} />
               </div>
             )}
           </main>
