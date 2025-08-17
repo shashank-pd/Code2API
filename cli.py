@@ -22,27 +22,39 @@ from src.config import config
 console = Console()
 
 def check_api_key():
-    """Check if OpenAI API key is configured"""
-    api_key = config.OPENAI_API_KEY or os.getenv('OPENAI_API_KEY')
-    if not api_key:
+    """Check if Groq API key is configured"""
+    groq_key = config.GROQ_API_KEY or os.getenv('GROQ_API_KEY')
+    openai_key = config.OPENAI_API_KEY or os.getenv('OPENAI_API_KEY')
+    
+    if not groq_key and not openai_key:
         console.print(Panel(
-            """❌ OpenAI API Key Required
+            """❌ AI API Key Required
 
-To use Code2API, you need an OpenAI API key:
+To use Code2API, you need either a Groq API key (recommended) or OpenAI API key:
 
+Option 1 - Groq (Recommended, Faster & Free):
+1. Get your API key from: https://console.groq.com/keys
+2. Set it in the .env file:
+   GROQ_API_KEY=your_groq_api_key_here
+
+Option 2 - OpenAI (Fallback):
 1. Get your API key from: https://platform.openai.com/api-keys
-2. Copy your API key
-3. Set it in the .env file:
-   OPENAI_API_KEY=your_api_key_here
+2. Set it in the .env file:
+   OPENAI_API_KEY=your_openai_api_key_here
 
-Or set it as an environment variable:
-   set OPENAI_API_KEY=your_api_key_here (Windows)
-   export OPENAI_API_KEY=your_api_key_here (Linux/Mac)
+Or set as environment variables:
+   export GROQ_API_KEY=your_key_here (Linux/Mac)
+   set GROQ_API_KEY=your_key_here (Windows)
 """, 
             style="red", 
             title="Setup Required"
         ))
-        raise click.ClickException("OpenAI API key not found. Please set up your API key.")
+        raise click.ClickException("AI API key not found. Please set up your Groq or OpenAI API key.")
+    
+    if groq_key:
+        console.print("✅ Using Groq API", style="green")
+    else:
+        console.print("⚠️  Using OpenAI API (consider switching to Groq for better performance)", style="yellow")
 
 @click.group()
 def cli():

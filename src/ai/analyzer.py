@@ -7,6 +7,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import asdict
 from ..parsers.code_parser import ParsedCode, Function, Class
 from ..config import config
+from ..cache import cache_ai_analysis, ai_response_cache
 
 # Import Groq with error handling
 try:
@@ -55,6 +56,7 @@ class AIAnalyzer:
         
         return analysis
     
+    @cache_ai_analysis
     def _analyze_function_for_api(self, func: Function, language: str) -> Optional[Dict[str, Any]]:
         """Analyze a function to determine if it should be an API endpoint"""
         
@@ -252,6 +254,7 @@ class AIAnalyzer:
         
         return recommendations
     
+    @cache_ai_analysis
     def generate_documentation(self, analysis: Dict[str, Any]) -> Dict[str, str]:
         """Generate comprehensive API documentation"""
         docs = {}

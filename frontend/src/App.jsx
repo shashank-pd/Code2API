@@ -7,6 +7,10 @@ import Topbar from "./components/layout/Topbar";
 import EditorPanel from "./components/panels/EditorPanel";
 import RepoPanel from "./components/panels/RepoPanel";
 import ResultsPanel from "./components/panels/ResultsPanel";
+import Alert from "./components/ui/Alert";
+import ProgressBar from "./components/ui/ProgressBar";
+import LoadingSpinner from "./components/ui/LoadingSpinner";
+import StatsCard from "./components/ui/StatsCard";
 
 const SUPPORTED_LANGUAGES = {
   python: { label: "Python", extension: ".py", mode: "python" },
@@ -25,6 +29,8 @@ function App() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("editor");
   const [inputMode, setInputMode] = useState("code"); // 'code' or 'repo'
+  const [progress, setProgress] = useState(0);
+  const [analysisStats, setAnalysisStats] = useState(null);
   const fileInputRef = useRef(null);
 
   const sampleCode = useMemo(
@@ -132,9 +138,14 @@ class UserManager {
   }, [language, sampleCode]);
 
   const analyzeCode = async () => {
+    // Input validation
     if (inputMode === "code") {
       if (!code.trim()) {
         setError("Please enter some code to analyze");
+        return;
+      }
+      if (code.length > 100000) {
+        setError("Code is too long. Maximum 100,000 characters allowed.");
         return;
       }
     } else {
@@ -142,21 +153,41 @@ class UserManager {
         setError("Please enter a GitHub repository URL");
         return;
       }
+      
+      // Basic URL validation
+      const urlPattern = /^https:\/\/github\.com\/[\w\-\.]+\/[\w\-\.]+/;
+      if (!urlPattern.test(repoUrl) && !repoUrl.includes('/')) {
+        setError("Please enter a valid GitHub repository URL (e.g., https://github.com/owner/repo)");
+        return;
+      }
     }
 
     setLoading(true);
     setError(null);
+    setProgress(0);
+    setAnalysisStats(null);
+
+    // Simulate progress for better UX
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev < 90) return prev + Math.random() * 10;
+        return prev;
+      });
+    }, 500);
 
     try {
       let response;
+      const startTime = Date.now();
 
       if (inputMode === "code") {
+        setProgress(20);
         response = await axios.post("/api/analyze", {
           code,
           language,
           filename,
         });
       } else {
+        setProgress(20);
         response = await axios.post("/api/analyze-repo", {
           repo_url: repoUrl,
           branch: branch || "main",
@@ -164,12 +195,66 @@ class UserManager {
         });
       }
 
+      const endTime = Date.now();
+      setProgress(100);
+      
+      // Set analysis stats
+      const stats = {
+        processingTime: (endTime - startTime) / 1000,
+        endpointCount: response.data.analysis?.api_endpoints?.length || 0,
+        securityIssues: response.data.analysis?.security_recommendations?.length || 0,
+        optimizations: response.data.analysis?.optimization_suggestions?.length || 0,
+      };
+      setAnalysisStats(stats);
+
       setAnalysis(response.data);
       setActiveTab("results");
+      
+      // Show success notification
+      setTimeout(() => {
+        setProgress(0);
+      }, 2000);
+      
     } catch (err) {
-      setError(err.response?.data?.detail || "Error analyzing code");
+      console.error("Analysis error:", err);
+      
+      // Enhanced error handling
+      if (err.response) {
+        const { status, data } = err.response;
+        
+        switch (status) {
+          case 400:
+            setError(data.detail || "Invalid request. Please check your input.");
+            break;
+          case 401:
+            setError("Authentication failed. Please check your API keys.");
+            break;
+          case 422:
+            if (data.errors && Array.isArray(data.errors)) {
+              const errorMessages = data.errors.map(e => e.msg).join(", ");
+              setError(`Validation error: ${errorMessages}`);
+            } else {
+              setError(data.detail || "Invalid input data.");
+            }
+            break;
+          case 429:
+            setError("Rate limit exceeded. Please wait a moment before trying again.");
+            break;
+          case 500:
+            setError("Server error. Please try again later or contact support.");
+            break;
+          default:
+            setError(data.detail || `Error ${status}: Analysis failed`);
+        }
+      } else if (err.request) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
+      clearInterval(progressInterval);
       setLoading(false);
+      setProgress(0);
     }
   };
 
@@ -177,8 +262,40 @@ class UserManager {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    // Validate files before upload
+    const maxFiles = 10;
+    const maxSize = 1024 * 1024; // 1MB
+    const allowedExtensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.java'];
+
+    if (files.length > maxFiles) {
+      setError(`Too many files. Maximum ${maxFiles} files allowed.`);
+      return;
+    }
+
+    // Validate each file
+    for (let file of files) {
+      if (file.size > maxSize) {
+        setError(`File "${file.name}" is too large. Maximum 1MB per file.`);
+        return;
+      }
+
+      const ext = '.' + file.name.split('.').pop().toLowerCase();
+      if (!allowedExtensions.includes(ext)) {
+        setError(`File "${file.name}" has unsupported extension. Allowed: ${allowedExtensions.join(', ')}`);
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
+    setProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev < 80) return prev + Math.random() * 10;
+        return prev;
+      });
+    }, 300);
 
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
@@ -186,29 +303,69 @@ class UserManager {
     }
 
     try {
+      const startTime = Date.now();
+      
       const response = await axios.post("/api/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        onUploadProgress: (progressEvent) => {
+          const uploadProgress = Math.round((progressEvent.loaded * 80) / progressEvent.total);
+          setProgress(uploadProgress);
+        },
       });
 
+      const endTime = Date.now();
+      setProgress(100);
+
+      const { results, successful_analyses, total_files } = response.data;
+      
+      // Set analysis stats
+      const totalEndpoints = results.reduce((sum, r) => sum + (r.endpoints_count || 0), 0);
+      const stats = {
+        processingTime: (endTime - startTime) / 1000,
+        endpointCount: totalEndpoints,
+        filesProcessed: total_files,
+        successfulFiles: successful_analyses,
+      };
+      setAnalysisStats(stats);
+
       // Show results for the first successful analysis
-      const firstSuccess = response.data.results.find((r) => r.success);
+      const firstSuccess = results.find((r) => r.success);
       if (firstSuccess) {
         setAnalysis({
           success: true,
           analysis: firstSuccess.analysis,
           generated_api_path: firstSuccess.api_path,
-          message: `Analyzed ${response.data.results.length} files`,
+          message: `Analyzed ${successful_analyses}/${total_files} files successfully`,
+          uploadResults: results, // Store all results for detailed view
         });
         setActiveTab("results");
       } else {
-        setError("No files could be analyzed successfully");
+        // Show detailed error messages
+        const errors = results.filter(r => !r.success).map(r => `${r.filename}: ${r.error}`);
+        setError(`No files could be analyzed successfully:\n${errors.join('\n')}`);
       }
+
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
     } catch (err) {
-      setError(err.response?.data?.detail || "Error uploading files");
+      console.error("Upload error:", err);
+      
+      if (err.response?.status === 413) {
+        setError("Files too large. Please reduce file sizes and try again.");
+      } else if (err.response?.status === 400) {
+        setError(err.response.data.detail || "Invalid files. Please check file types and sizes.");
+      } else {
+        setError(err.response?.data?.detail || "Error uploading files. Please try again.");
+      }
     } finally {
+      clearInterval(progressInterval);
       setLoading(false);
+      setTimeout(() => setProgress(0), 2000);
     }
   };
 
@@ -328,6 +485,49 @@ class UserManager {
 
             {activeTab === "editor" && (
               <div className="space-y-4">
+                {/* Progress Bar */}
+                {loading && progress > 0 && (
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {inputMode === "code" ? "Analyzing Code..." : "Analyzing Repository..."}
+                      </span>
+                      <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
+                    </div>
+                    <ProgressBar value={progress} variant="default" />
+                  </div>
+                )}
+
+                {/* Analysis Stats */}
+                {analysisStats && !loading && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <StatsCard
+                      title="Processing Time"
+                      value={`${analysisStats.processingTime.toFixed(1)}s`}
+                      icon="⏱️"
+                      variant="info"
+                    />
+                    <StatsCard
+                      title="API Endpoints"
+                      value={analysisStats.endpointCount}
+                      icon="🔗"
+                      variant="success"
+                    />
+                    <StatsCard
+                      title="Security Issues"
+                      value={analysisStats.securityIssues}
+                      icon="🔒"
+                      variant={analysisStats.securityIssues > 0 ? "warning" : "success"}
+                    />
+                    <StatsCard
+                      title="Optimizations"
+                      value={analysisStats.optimizations}
+                      icon="⚡"
+                      variant="info"
+                    />
+                  </div>
+                )}
+
                 {inputMode === "code" ? (
                   <EditorPanel
                     language={language}
@@ -351,9 +551,28 @@ class UserManager {
                     onAnalyze={analyzeCode}
                   />
                 )}
+
+                {/* Enhanced Error Display */}
                 {error && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
-                    {error}
+                  <Alert 
+                    variant="error" 
+                    title="Analysis Error"
+                    onClose={() => setError(null)}
+                  >
+                    <div className="whitespace-pre-line">{error}</div>
+                    <div className="mt-2 text-xs opacity-75">
+                      If this error persists, please check your input or try again later.
+                    </div>
+                  </Alert>
+                )}
+
+                {/* Loading Overlay */}
+                {loading && (
+                  <div className="rounded-lg border bg-card p-8">
+                    <LoadingSpinner 
+                      size="lg" 
+                      text={inputMode === "code" ? "Analyzing your code..." : "Analyzing repository..."}
+                    />
                   </div>
                 )}
               </div>
