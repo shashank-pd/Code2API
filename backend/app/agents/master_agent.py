@@ -70,10 +70,9 @@ class MasterAgent:
                 documentation_generator_tool
             ]
             
-            # Create agent prompt
+            # Create simplified agent prompt to avoid template variable issues
             prompt = ChatPromptTemplate.from_messages([
                 ("system", self._get_system_prompt()),
-                MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad")
             ])
@@ -85,7 +84,7 @@ class MasterAgent:
                 prompt=prompt
             )
             
-            # Create agent executor without deprecated memory
+            # Create basic agent executor
             self.agent_executor = AgentExecutor(
                 agent=agent,
                 tools=self.tools,
@@ -96,28 +95,11 @@ class MasterAgent:
                 return_intermediate_steps=True
             )
             
-            # Initialize message store for conversation history
-            self.store = {}
-            
-            # Create agent with message history
-            self.agent_with_chat_history = RunnableWithMessageHistory(
-                self.agent_executor,
-                self._get_session_history,
-                input_messages_key="input",
-                history_messages_key="chat_history",
-            )
-            
             logger.info("MasterAgent initialized successfully with %d tools", len(self.tools))
             
         except Exception as e:
             logger.error(f"Failed to initialize MasterAgent: {e}")
             raise
-    
-    def _get_session_history(self, session_id: str) -> BaseChatMessageHistory:
-        """Get or create chat message history for a session"""
-        if session_id not in self.store:
-            self.store[session_id] = ChatMessageHistory()
-        return self.store[session_id]
     
     def _get_system_prompt(self) -> str:
         """Get the system prompt for the master agent"""
@@ -133,55 +115,44 @@ Your mission is to orchestrate a complete multi-stage workflow using your specia
 6. **API_TESTER_TOOL**: Create comprehensive test suites with coverage reporting
 7. **DOCUMENTATION_GENERATOR_TOOL**: Generate beautiful documentation with badges
 
-**ENHANCED WORKFLOW EXECUTION STRATEGY:**
+**WORKFLOW EXECUTION STRATEGY:**
 
-Execute these phases in sequence with improved data flow:
+Execute these phases in sequence:
 
 **PHASE 1: CODE ACQUISITION**
 - Use code_fetcher_tool with GitHub URL and branch
-- Pass clean parameters: {"repo_url": "...", "branch": "main", "output_dir": "..."}
-- Validate successful download and extract files_data structure
-- Return: {"success": True, "files_data": {...}, "repo_language": "python"}
+- Validate successful download and extract files data
+- Return structured files information
 
-**PHASE 2: ENHANCED CODE ANALYSIS** 
-- Use code_analyzer_tool with files_data from Phase 1
-- Pass: {"files_data": result_from_phase1["files_data"], "repo_language": "python"}
+**PHASE 2: CODE ANALYSIS** 
+- Use code_analyzer_tool with files data from Phase 1
 - Extract business logic, repository purpose, and data models
-- Return enhanced analysis with repo_purpose and main_functionality
+- Return enhanced analysis with API recommendations
 
-**PHASE 3: DOMAIN-SPECIFIC API DESIGN**
-- Use api_designer_tool with enhanced analysis results
-- Pass: analysis_result from Phase 2 directly
-- Create domain-specific OpenAPI specification based on repo_purpose
-- Generate purpose-specific endpoints (ML, data analysis, file processing, etc.)
+**PHASE 3: API DESIGN**
+- Use api_designer_tool with analysis results
+- Create OpenAPI specification based on code analysis
+- Generate appropriate endpoints for the repository type
 
-**PHASE 4: BUSINESS LOGIC CODE GENERATION**
+**PHASE 4: CODE GENERATION**
 - Use api_generator_tool with OpenAPI spec and analysis
-- Pass: {"openapi_spec": result_from_phase3, "analysis_result": result_from_phase2, "output_dir": "..."}
-- Generate FastAPI code with actual business logic implementation
-- Create domain-specific modules and integrate repository functionality
+- Generate FastAPI code with proper structure
+- Implement business logic from the original repository
 
 **PHASE 5: SECURITY ENHANCEMENT**
 - Use security_enforcer_tool on generated API directory
-- Apply purpose-specific security measures
-- Implement authentication, authorization, and input validation
+- Apply authentication, authorization, and input validation
+- Implement security best practices
 
-**PHASE 6: COMPREHENSIVE TEST GENERATION**
-- Use api_tester_tool with API path and business logic
-- Generate tests that validate actual functionality
-- Create domain-specific test cases based on repository purpose
+**PHASE 6: TEST GENERATION**
+- Use api_tester_tool with API path
+- Generate comprehensive test suites
+- Create unit, integration, and security tests
 
-**PHASE 7: ENHANCED DOCUMENTATION**
-- Use documentation_generator_tool with all workflow results
-- Generate comprehensive documentation with business logic explanation
-- Include repository purpose and functionality mapping
-
-**CRITICAL DATA FLOW REQUIREMENTS:**
-- Always pass clean, structured data between tools
-- Validate tool outputs before passing to next phase
-- Handle nested parameter structures by extracting actual data
-- Preserve business logic context throughout the workflow
-- Use repository purpose to guide all subsequent phases
+**PHASE 7: DOCUMENTATION**
+- Use documentation_generator_tool with all results
+- Generate comprehensive documentation
+- Include setup guides and API reference
 
 **QUALITY STANDARDS:**
 - Prioritize security (authentication, authorization, input validation)
@@ -189,12 +160,6 @@ Execute these phases in sequence with improved data flow:
 - Generate production-ready code with error handling
 - Follow REST API best practices and OpenAPI standards
 - Create clear, actionable documentation
-
-**ERROR HANDLING:**
-- If any tool fails, log the error and continue with remaining phases
-- Provide clear progress updates throughout execution
-- Validate inputs and outputs between phases
-- Return comprehensive results even if some phases fail
 
 Always execute the complete workflow and provide detailed results for each phase."""
 
@@ -213,52 +178,35 @@ Always execute the complete workflow and provide detailed results for each phase
             raise RuntimeError("MasterAgent not initialized. Call initialize() first.")
         
         try:
-            # Prepare enhanced workflow input with explicit data flow instructions
+            # Use simplified workflow input to avoid template variable issues
             workflow_input = f"""
-Execute the ENHANCED code-to-API generation workflow for repository: {repo_url}
+Execute the code-to-API generation workflow for repository: {repo_url}
 
 Branch: {branch}
 Output Directory: /tmp/generated_apis/{repo_url.split('/')[-1]}
 
-IMPORTANT: Follow this EXACT sequence with proper data passing:
+Execute these steps in sequence:
 
-1. FETCH: Use code_fetcher_tool(repo_url="{repo_url}", branch="{branch}", output_dir="/tmp/repos/{repo_url.split('/')[-1]}")
-   - Extract files_data and repo_language from result
+1. FETCH: Use code_fetcher_tool to download repository
+2. ANALYZE: Use code_analyzer_tool for code analysis  
+3. DESIGN: Use api_designer_tool to create OpenAPI specification
+4. GENERATE: Use api_generator_tool to generate FastAPI code
+5. SECURE: Use security_enforcer_tool to add security layers
+6. TEST: Use api_tester_tool to generate tests
+7. DOCUMENT: Use documentation_generator_tool to create documentation
 
-2. ANALYZE: Use code_analyzer_tool(files_data=<result_from_step1.files_data>, repo_language=<result_from_step1.repo_language>)
-   - Get enhanced analysis with repo_purpose and main_functionality
-   - Extract business logic and data models
-
-3. DESIGN: Use api_designer_tool(analysis_result=<complete_result_from_step2>)
-   - Create domain-specific OpenAPI specification
-   - Generate endpoints based on repository purpose
-
-4. GENERATE: Use api_generator_tool(openapi_spec=<result_from_step3.openapi_spec>, analysis_result=<result_from_step2>, output_dir="/tmp/generated_apis/{repo_url.split('/')[-1]}")
-   - Generate FastAPI code with actual business logic
-   - Implement domain-specific functionality
-
-5. SECURE: Use security_enforcer_tool(api_directory=<result_from_step4.output_directory>)
-   - Apply security measures appropriate for the repository purpose
-
-6. TEST: Use api_tester_tool(api_directory=<result_from_step4.output_directory>, analysis_result=<result_from_step2>)
-   - Generate comprehensive tests for business logic
-
-7. DOCUMENT: Use documentation_generator_tool(api_directory=<result_from_step4.output_directory>, workflow_results=<all_previous_results>)
-   - Create complete documentation
-
-CRITICAL: Pass actual data between tools, not nested structures. Validate each step before proceeding.
-Focus on implementing REAL functionality from the original repository.
+Provide clean progress updates for each step.
 """
             
             logger.info(f"Starting workflow execution for {repo_url}")
             
-            # Execute the enhanced workflow with robust error handling
-            session_id = f"enhanced_workflow_{repo_url.split('/')[-1]}"
+            # Execute the workflow with robust error handling
+            session_id = f"workflow_{repo_url.split('/')[-1]}"
             
             try:
-                result = await self.agent_with_chat_history.ainvoke(
-                    {"input": workflow_input},
-                    config={"configurable": {"session_id": session_id}}
+                # Use the basic agent executor to avoid complex template issues
+                result = await self.agent_executor.ainvoke(
+                    {"input": workflow_input}
                 )
                 
                 # Validate workflow completion
@@ -266,22 +214,21 @@ Focus on implementing REAL functionality from the original repository.
                     logger.warning("Workflow completed with some phases missing")
                     
             except Exception as tool_error:
-                logger.error(f"Enhanced workflow execution error: {tool_error}")
+                logger.error(f"Workflow execution error: {tool_error}")
                 
-                # Attempt a simplified fallback workflow
+                # Attempt a simplified fallback workflow using basic executor
                 fallback_input = f"""
-Execute a simplified workflow for {repo_url}:
-1. Try code_fetcher_tool to download repository
-2. If successful, try code_analyzer_tool for basic analysis
-3. Generate a simple API structure
+Execute a simplified workflow for repository {repo_url}:
+1. Use code_fetcher_tool with repo_url="{repo_url}" and branch="{branch}"
+2. Use code_analyzer_tool with the fetched code
+3. Use api_generator_tool to create a basic API
 
-Handle any tool parameter issues by extracting clean data.
+Focus on generating a working API with minimal complexity.
 """
                 
                 try:
-                    result = await self.agent_with_chat_history.ainvoke(
-                        {"input": fallback_input},
-                        config={"configurable": {"session_id": f"fallback_{session_id}"}}
+                    result = await self.agent_executor.ainvoke(
+                        {"input": fallback_input}
                     )
                 except Exception as fallback_error:
                     logger.error(f"Fallback workflow also failed: {fallback_error}")
@@ -290,7 +237,7 @@ Handle any tool parameter issues by extracting clean data.
                         "intermediate_steps": []
                     }
             
-            # Parse and structure the enhanced results
+            # Parse and structure the results
             workflow_results = self._parse_enhanced_workflow_results(result, repo_url)
             
             # Store workflow state
@@ -304,7 +251,7 @@ Handle any tool parameter issues by extracting clean data.
             return workflow_results
             
         except Exception as e:
-            logger.error(f"Enhanced workflow execution failed: {e}")
+            logger.error(f"Workflow execution failed: {e}")
             # Return an enhanced fallback result
             return {
                 "success": False,
