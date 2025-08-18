@@ -22,8 +22,6 @@ def api_generator_tool(openapi_spec: Dict[str, Any], analysis_result: Dict[str, 
     try:
         # Handle nested parameter structure from LangChain agent
         if isinstance(openapi_spec, dict) and 'function_name' in openapi_spec:
-            # Extract the actual OpenAPI spec from the nested structure
-            # This happens when LangChain passes tool results as parameters
             print(f"[DEBUG] Received nested openapi_spec structure: {type(openapi_spec)}")
             return {
                 "success": False,
@@ -31,9 +29,25 @@ def api_generator_tool(openapi_spec: Dict[str, Any], analysis_result: Dict[str, 
                 "debug_info": str(openapi_spec)[:500]
             }
         
+        if isinstance(analysis_result, dict) and 'function_name' in analysis_result:
+            print(f"[DEBUG] Received nested analysis_result structure: {type(analysis_result)}")
+            return {
+                "success": False,
+                "error": "Received nested parameter structure instead of analysis result",
+                "debug_info": str(analysis_result)[:500]
+            }
+        
+        # Handle case where openapi_spec might be wrapped in a success response
+        if isinstance(openapi_spec, dict) and 'openapi_spec' in openapi_spec:
+            openapi_spec = openapi_spec['openapi_spec']
+        
+        # Handle case where analysis_result might be wrapped
+        if isinstance(analysis_result, dict) and 'analysis_result' in analysis_result:
+            analysis_result = analysis_result['analysis_result']
+        
         # Ensure we have a valid OpenAPI spec structure
         if not isinstance(openapi_spec, dict) or 'info' not in openapi_spec:
-            print(f"[DEBUG] Invalid OpenAPI spec structure: {openapi_spec}")
+            print(f"[DEBUG] Invalid OpenAPI spec structure, creating default")
             # Create a default OpenAPI spec if none provided
             openapi_spec = {
                 "openapi": "3.0.0",
@@ -44,6 +58,15 @@ def api_generator_tool(openapi_spec: Dict[str, Any], analysis_result: Dict[str, 
                 },
                 "paths": {},
                 "components": {"schemas": {}}
+            }
+        
+        # Ensure we have valid analysis result
+        if not isinstance(analysis_result, dict):
+            print(f"[DEBUG] Invalid analysis result, creating default")
+            analysis_result = {
+                "repo_purpose": "utility",
+                "main_functionality": [],
+                "language": "python"
             }
         
         # Create output directory

@@ -115,44 +115,23 @@ Your mission is to orchestrate a complete multi-stage workflow using your specia
 6. **API_TESTER_TOOL**: Create comprehensive test suites with coverage reporting
 7. **DOCUMENTATION_GENERATOR_TOOL**: Generate beautiful documentation with badges
 
-**WORKFLOW EXECUTION STRATEGY:**
+**CRITICAL WORKFLOW EXECUTION:**
 
-Execute these phases in sequence:
+You MUST execute each tool in the correct sequence, passing the ACTUAL RESULTS from one step to the next.
 
-**PHASE 1: CODE ACQUISITION**
-- Use code_fetcher_tool with GitHub URL and branch
-- Validate successful download and extract files data
-- Return structured files information
+**Step 1:** Execute code_fetcher_tool first with repo_url and branch parameters
+**Step 2:** Take the files_data from Step 1 result and pass it to code_analyzer_tool  
+**Step 3:** Take the analysis_result from Step 2 and pass it to api_designer_tool
+**Step 4:** Take BOTH the openapi_spec from Step 3 AND analysis_result from Step 2 and pass them to api_generator_tool
+**Step 5:** Take the output_directory from Step 4 and pass it to security_enforcer_tool
+**Step 6:** Take the output_directory from Step 4 and pass it to api_tester_tool
+**Step 7:** Take the output_directory and all previous results to documentation_generator_tool
 
-**PHASE 2: CODE ANALYSIS** 
-- Use code_analyzer_tool with files data from Phase 1
-- Extract business logic, repository purpose, and data models
-- Return enhanced analysis with API recommendations
-
-**PHASE 3: API DESIGN**
-- Use api_designer_tool with analysis results
-- Create OpenAPI specification based on code analysis
-- Generate appropriate endpoints for the repository type
-
-**PHASE 4: CODE GENERATION**
-- Use api_generator_tool with OpenAPI spec and analysis
-- Generate FastAPI code with proper structure
-- Implement business logic from the original repository
-
-**PHASE 5: SECURITY ENHANCEMENT**
-- Use security_enforcer_tool on generated API directory
-- Apply authentication, authorization, and input validation
-- Implement security best practices
-
-**PHASE 6: TEST GENERATION**
-- Use api_tester_tool with API path
-- Generate comprehensive test suites
-- Create unit, integration, and security tests
-
-**PHASE 7: DOCUMENTATION**
-- Use documentation_generator_tool with all results
-- Generate comprehensive documentation
-- Include setup guides and API reference
+**PARAMETER PASSING RULES:**
+- NEVER pass nested tool results (objects with 'function_name' keys)
+- Extract the actual data from tool outputs before passing to next tool
+- If a tool returns {"success": true, "data": {...}}, pass the "data" part only
+- Store intermediate results and reference them properly
 
 **QUALITY STANDARDS:**
 - Prioritize security (authentication, authorization, input validation)
@@ -161,7 +140,7 @@ Execute these phases in sequence:
 - Follow REST API best practices and OpenAPI standards
 - Create clear, actionable documentation
 
-Always execute the complete workflow and provide detailed results for each phase."""
+Execute each step carefully and validate the results before proceeding to the next step."""
 
     async def execute_workflow(self, repo_url: str, branch: str = "main") -> Dict[str, Any]:
         """
@@ -185,17 +164,29 @@ Execute the code-to-API generation workflow for repository: {repo_url}
 Branch: {branch}
 Output Directory: /tmp/generated_apis/{repo_url.split('/')[-1]}
 
-Execute these steps in sequence:
+Execute these steps in EXACT sequence with proper parameter passing:
 
-1. FETCH: Use code_fetcher_tool to download repository
-2. ANALYZE: Use code_analyzer_tool for code analysis  
-3. DESIGN: Use api_designer_tool to create OpenAPI specification
-4. GENERATE: Use api_generator_tool to generate FastAPI code
-5. SECURE: Use security_enforcer_tool to add security layers
-6. TEST: Use api_tester_tool to generate tests
-7. DOCUMENT: Use documentation_generator_tool to create documentation
+1. FETCH: Execute code_fetcher_tool(repo_url="{repo_url}", branch="{branch}")
+   Store the result as 'fetch_result'
 
-Provide clean progress updates for each step.
+2. ANALYZE: Execute code_analyzer_tool(files_data=fetch_result["files_data"], repo_language=fetch_result["language"])
+   Store the result as 'analysis_result'
+
+3. DESIGN: Execute api_designer_tool(analysis_result=analysis_result)
+   Store the result as 'design_result'
+
+4. GENERATE: Execute api_generator_tool(openapi_spec=design_result["openapi_spec"], analysis_result=analysis_result, output_dir="/tmp/generated_apis/{repo_url.split('/')[-1]}")
+   Store the result as 'generation_result'
+
+5. SECURE: Execute security_enforcer_tool(api_directory=generation_result["output_directory"])
+   Store the result as 'security_result'
+
+6. TEST: Execute api_tester_tool(api_directory=generation_result["output_directory"])
+   Store the result as 'test_result'
+
+7. DOCUMENT: Execute documentation_generator_tool(api_directory=generation_result["output_directory"], workflow_results=all_previous_results)
+
+CRITICAL: Extract actual data from each tool result before passing to the next tool. Do not pass nested structures.
 """
             
             logger.info(f"Starting workflow execution for {repo_url}")
