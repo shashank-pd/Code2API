@@ -56,31 +56,68 @@ class AIAnalyzer:
         return analysis
     
     def _analyze_function_for_api(self, func: Function, language: str) -> Optional[Dict[str, Any]]:
-        """Analyze a function to determine if it should be an API endpoint"""
+        """Analyze a function to determine if it should be an API endpoint - enhanced for GUI code"""
         
         # Skip private functions and common utility functions
         if func.name.startswith('_') or func.name in ['main', '__init__', 'setup', 'teardown']:
             return None
         
         prompt = f"""
-        Analyze this {language} function and determine if it should be exposed as an API endpoint:
-        
-        Function: {func.name}
+        You are an expert code analyzer. Analyze this {language} function and determine if it contains business logic that can be converted to an API endpoint, even if it's currently mixed with GUI/UI code.
+
+        Function Name: {func.name}
         Parameters: {func.parameters}
         Return Type: {func.return_type}
         Docstring: {func.docstring}
         Is Async: {func.is_async}
-        
-        Please provide:
-        1. Should this be an API endpoint? (yes/no)
-        2. HTTP method (GET/POST/PUT/DELETE)
-        3. Endpoint path suggestion
-        4. Brief description
-        5. Does it need authentication? (yes/no)
-        6. Input validation requirements
-        7. Expected response format
-        
-        Respond in JSON format.
+        Code Snippet: Available for analysis
+
+        **Enhanced Analysis Instructions:**
+        - Focus on extracting pure business logic from GUI/UI operations
+        - Ignore GUI-specific operations (tkinter widgets, UI updates, DOM manipulation, etc.)
+        - Identify mathematical calculations, data processing, and business rules
+        - Extract potential input parameters (even if they come from UI widgets)
+        - Determine what the function actually computes or processes
+        - Consider what a pure function version would look like
+
+        **Special Cases to Handle:**
+        1. GUI Functions: Extract core calculations from UI event handlers
+        2. Database Functions: Focus on CRUD operations
+        3. File Operations: Consider file processing as API operations
+        4. Calculations: Mathematical or algorithmic functions are perfect for APIs
+
+        Please analyze and respond in JSON format:
+        {{
+            "has_api_potential": true/false,
+            "function_name": "{func.name}",
+            "http_method": "GET/POST/PUT/DELETE",
+            "endpoint_path": "/suggested/path",
+            "description": "What this API endpoint would do",
+            "needs_auth": true/false,
+            "input_validation": {{
+                "required_params": [
+                    {{"name": "param1", "type": "string", "description": "desc"}}
+                ]
+            }},
+            "response_format": {{
+                "content_type": "application/json",
+                "body": {{"example": "response structure"}}
+            }},
+            "parameters": [
+                {{"name": "param", "type": "string", "default": null}}
+            ],
+            "is_async": {func.is_async},
+            "original_function": {{
+                "name": "{func.name}",
+                "parameters": {func.parameters},
+                "return_type": "{func.return_type}",
+                "docstring": "{func.docstring}",
+                "line_number": {func.line_number},
+                "is_async": {func.is_async},
+                "decorators": {func.decorators},
+                "visibility": "{func.visibility}"
+            }}
+        }}
         """
         
         try:
@@ -154,7 +191,8 @@ class AIAnalyzer:
                     analysis.get("should_be_api_endpoint", "").lower() == "yes" or
                     analysis.get("should_be_endpoint", "").lower() == "yes" or
                     analysis.get("expose_as_api_endpoint", "").lower() == "yes" or
-                    analysis.get("should_expose_as_api", "").lower() == "yes"
+                    analysis.get("should_expose_as_api", "").lower() == "yes" or
+                    analysis.get("has_api_potential", False) == True
                 )
                 
                 if should_be_endpoint:

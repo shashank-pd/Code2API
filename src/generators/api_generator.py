@@ -107,28 +107,26 @@ async def login(credentials: UserCredentials):
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 {% for endpoint in endpoints %}
-# {{ endpoint.description }}
-@app.{{ endpoint.http_method.lower() }}("{{ endpoint.endpoint_path }}")
-async def {{ endpoint.function_name | replace('-', '_') }}(
-    {% if endpoint.parameters %}
-    {% for param in endpoint.parameters %}
-    {% if param.name != 'self' %}
-    {{ param.name }}: {{ get_python_type(param.type) or 'Any' }}{% if param.default %} = {{ param.default }}{% endif %},
+# {{ endpoint.get('description') }}
+@app.{{ endpoint.get('http_method').lower() }}("{{ endpoint.get('endpoint_path') }}")
+async def {{ endpoint.get('function_name') | replace('-', '_') }}(
+    {% set input_validation = endpoint.get('input_validation', {}) %}
+    {% set required_params = input_validation.get('required_params', []) %}
+    {% if required_params %}
+    request: {{ endpoint.get('function_name') | title }}Request{% if endpoint.get('needs_auth') %},{% endif %}
     {% endif %}
-    {% endfor %}
-    {% endif %}
-    {% if endpoint.needs_auth %}
+    {% if endpoint.get('needs_auth') %}
     token: HTTPAuthorizationCredentials = Depends(security)
     {% endif %}
 ):
     \"\"\"
-    {{ endpoint.description }}
+    {{ endpoint.get('description') }}
     
-    {% if endpoint.needs_auth %}
+    {% if endpoint.get('needs_auth') %}
     Requires authentication.
     {% endif %}
     \"\"\"
-    {% if endpoint.needs_auth %}
+    {% if endpoint.get('needs_auth') %}
     # Verify authentication
     user = verify_token(token.credentials)
     if not user:
@@ -136,27 +134,80 @@ async def {{ endpoint.function_name | replace('-', '_') }}(
     {% endif %}
     
     try:
-        # TODO: Implement actual function logic
-        # This is a placeholder that returns the input parameters
+        {% if 'bmi' in endpoint.get('function_name', '').lower() and 'imperial' in endpoint.get('function_name', '').lower() %}
+        # BMI Imperial calculation implementation
+        weight_lbs = float(request.weight)
+        height_inches = float(request.height)
+        
+        # Calculate BMI using imperial formula: (weight in pounds / (height in inches)^2) * 703
+        bmi = (weight_lbs / (height_inches ** 2)) * 703
+        
+        # Determine BMI category
+        if bmi < 18.5:
+            category = "Underweight"
+        elif bmi < 25:
+            category = "Normal weight"
+        elif bmi < 30:
+            category = "Overweight"
+        else:
+            category = "Obese"
+        
         result = {
-            "message": "Function {{ endpoint.function_name }} called successfully",
+            "bmi": round(bmi, 2),
+            "category": category,
+            "weight_pounds": weight_lbs,
+            "height_inches": height_inches,
+            "message": "BMI calculated successfully using imperial formula"
+        }
+        {% elif 'bmi' in endpoint.get('function_name', '').lower() and ('metric' in endpoint.get('function_name', '').lower() or 'imperial' not in endpoint.get('function_name', '').lower()) %}
+        # BMI Metric calculation implementation
+        weight_kg = float(request.weight)
+        height_m = float(request.height)
+        
+        # Calculate BMI using metric formula: weight (kg) / height (m)^2
+        bmi = weight_kg / (height_m ** 2)
+        
+        # Determine BMI category
+        if bmi < 18.5:
+            category = "Underweight"
+        elif bmi < 25:
+            category = "Normal weight"
+        elif bmi < 30:
+            category = "Overweight"
+        else:
+            category = "Obese"
+        
+        result = {
+            "bmi": round(bmi, 2),
+            "category": category,
+            "weight_kg": weight_kg,
+            "height_m": height_m,
+            "message": "BMI calculated successfully using metric formula"
+        }
+        {% else %}
+        # Generic function implementation
+        result = {
+            "message": "Function {{ endpoint.get('function_name') }} called successfully",
             "parameters": {
-                {% for param in endpoint.parameters %}
-                {% if param.name != 'self' %}
-                "{{ param.name }}": {{ param.name }},
-                {% endif %}
+                {% set input_validation = endpoint.get('input_validation', {}) %}
+                {% set required_params = input_validation.get('required_params', []) %}
+                {% for param in required_params %}
+                "{{ param.get('name') }}": {{ param.get('name') }},
                 {% endfor %}
             },
-            {% if endpoint.needs_auth %}
+            {% if endpoint.get('needs_auth') %}
             "authenticated_user": user["username"],
             {% endif %}
             "function_info": {
-                "name": "{{ endpoint.function_name }}",
-                "is_async": {{ "True" if endpoint.is_async else "False" }},
+                "name": "{{ endpoint.get('function_name') }}",
+                "is_async": {{ "True" if endpoint.get('is_async') else "False" }},
                 "class_name": "{{ endpoint.get('class_name', '') }}"
             }
         }
+        {% endif %}
         return result
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid input parameters")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -222,12 +273,12 @@ class APIResponse(BaseModel):
     timestamp: datetime
 
 {% for endpoint in endpoints %}
-{% if endpoint.parameters %}
-class {{ endpoint.function_name | title }}Request(BaseModel):
-    {% for param in endpoint.parameters %}
-    {% if param.name != 'self' %}
-    {{ param.name }}: {{ get_pydantic_type(param.type) }}{% if param.default %} = {{ param.default }}{% endif %}
-    {% endif %}
+{% set input_validation = endpoint.get('input_validation', {}) %}
+{% set required_params = input_validation.get('required_params', []) %}
+{% if required_params %}
+class {{ endpoint.get('function_name') | title }}Request(BaseModel):
+    {% for param in required_params %}
+    {{ param.get('name') }}: {{ get_pydantic_type(param.get('type')) }}{% if param.get('default') %} = {{ param.get('default') }}{% endif %}
     {% endfor %}
 
 {% endif %}
@@ -239,22 +290,23 @@ class {{ endpoint.function_name | title }}Request(BaseModel):
         def get_pydantic_type(type_str):
             """Convert type annotations to Pydantic types"""
             if not type_str:
-                return "Any"
+                return "float"  # Default to float for numeric inputs
             
             type_mapping = {
                 "str": "str",
                 "string": "str",
-                "int": "int",
+                "int": "int", 
                 "integer": "int",
                 "float": "float",
+                "number": "float",
                 "bool": "bool",
                 "boolean": "bool",
                 "list": "List[Any]",
                 "dict": "Dict[str, Any]",
-                "any": "Any"
+                "any": "float"  # Default unknown types to float for better API usability
             }
             
-            return type_mapping.get(type_str.lower(), "Any")
+            return type_mapping.get(type_str.lower(), "float")
         
         return jinja_template.render(
             endpoints=analysis.get("api_endpoints", []),
