@@ -24,6 +24,40 @@ class GitHubRepoFetcher:
         
         self.api_base = "https://api.github.com"
     
+    def download_repo_zip_direct(self, owner: str, repo: str, branch: str = "main") -> str:
+        """Download repository as ZIP without using GitHub API"""
+        # Direct download URL for public repositories
+        zip_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/{branch}.zip"
+        
+        try:
+            response = requests.get(zip_url, timeout=30)
+            if response.status_code == 200:
+                # Save to temporary file
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+                temp_file.write(response.content)
+                temp_file.close()
+                return temp_file.name
+            else:
+                # Try master branch if main fails
+                if branch == "main":
+                    return self.download_repo_zip_direct(owner, repo, "master")
+                raise ValueError(f"Failed to download repository {owner}/{repo}")
+        except Exception as e:
+            raise ValueError(f"Error downloading repository: {str(e)}")
+    
+    def get_repo_info_fallback(self, owner: str, repo: str) -> Dict[str, Any]:
+        """Get basic repository information without API (fallback method)"""
+        return {
+            "name": repo,
+            "full_name": f"{owner}/{repo}",
+            "owner": {"login": owner},
+            "description": f"Repository {owner}/{repo}",
+            "language": "Unknown",
+            "stargazers_count": 0,
+            "forks_count": 0,
+            "html_url": f"https://github.com/{owner}/{repo}"
+        }
+    
     def parse_github_url(self, url: str) -> Dict[str, str]:
         """Parse GitHub URL to extract owner and repo"""
         # Handle different GitHub URL formats
@@ -47,8 +81,22 @@ class GitHubRepoFetcher:
         
         if response.status_code == 404:
             raise ValueError(f"Repository {owner}/{repo} not found")
+        elif response.status_code == 401:
+            # Invalid or missing GitHub token - use fallback
+            print(f"GitHub token invalid or missing, using fallback method")
+            return self.get_repo_info_fallback(owner, repo)
+        elif response.status_code == 403:
+            # Rate limit or access denied - use fallback
+            print(f"GitHub API access denied (403), using fallback method")
+            return self.get_repo_info_fallback(owner, repo)
+        elif response.status_code == 429:
+            # Rate limit exceeded - use fallback
+            print(f"GitHub API rate limit exceeded, using fallback method")
+            return self.get_repo_info_fallback(owner, repo)
         elif response.status_code != 200:
-            raise ValueError(f"Error fetching repo info: {response.status_code}")
+            # Any other error - try fallback first
+            print(f"GitHub API error {response.status_code}, trying fallback method")
+            return self.get_repo_info_fallback(owner, repo)
         
         return response.json()
     

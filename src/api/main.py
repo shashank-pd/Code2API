@@ -38,7 +38,7 @@ app.add_middleware(
 parser = CodeParser()
 analyzer = AIAnalyzer()
 generator = APIGenerator()
-github_fetcher = GitHubRepoFetcher()
+github_fetcher = GitHubRepoFetcher(github_token=config.GITHUB_TOKEN)
 
 class GitHubRepoRequest(BaseModel):
     repo_url: str
@@ -85,23 +85,39 @@ async def analyze_github_repo(request: GitHubRepoRequest, background_tasks: Back
         owner = repo_info["owner"]
         repo = repo_info["repo"]
         
-        # Get repository information
-        repo_data = github_fetcher.get_repo_info(owner, repo)
+        # Get repository information (with fallback)
+        try:
+            repo_data = github_fetcher.get_repo_info(owner, repo)
+        except ValueError as e:
+            if "403" in str(e) or "429" in str(e) or "rate limit" in str(e).lower():
+                # Use fallback method without API
+                print(f"GitHub API access limited, using fallback: {e}")
+                repo_data = github_fetcher.get_repo_info_fallback(owner, repo)
+            else:
+                raise e
         
         # Create temporary directory
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Clone or download repository
+            # Try to clone/download repository (with fallback)
             try:
+                # First try git clone (doesn't require API)
                 repo_path = github_fetcher.clone_repo(owner, repo, temp_dir, request.branch)
-            except Exception:
-                # Fallback to ZIP download
-                zip_path = github_fetcher.download_repo_zip(owner, repo, request.branch)
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(temp_dir)
-                # Find the extracted directory
-                extracted_dirs = [d for d in Path(temp_dir).iterdir() if d.is_dir()]
-                repo_path = str(extracted_dirs[0]) if extracted_dirs else temp_dir
-                os.unlink(zip_path)
+            except Exception as clone_error:
+                print(f"Git clone failed, trying direct ZIP download: {clone_error}")
+                try:
+                    # Try direct ZIP download (no API required)
+                    zip_path = github_fetcher.download_repo_zip_direct(owner, repo, request.branch)
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(temp_dir)
+                    # Find the extracted directory
+                    extracted_dirs = [d for d in Path(temp_dir).iterdir() if d.is_dir()]
+                    repo_path = str(extracted_dirs[0]) if extracted_dirs else temp_dir
+                    os.unlink(zip_path)
+                except Exception as download_error:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Failed to download repository. Clone error: {clone_error}. Download error: {download_error}"
+                    )
             
             # Extract supported files
             supported_files = github_fetcher.extract_supported_files(

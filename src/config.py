@@ -29,6 +29,9 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
+    # GitHub Configuration
+    GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+    
     # File paths
     ROOT_DIR = Path(__file__).parent.parent
     TEMPLATES_DIR = ROOT_DIR / "templates"
