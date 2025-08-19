@@ -1,11 +1,12 @@
 import { cn } from "../../lib/utils";
-import { FileCode2, BarChart3, BookText } from "lucide-react";
+import { FileCode2, BarChart3, BookText, Zap } from "lucide-react";
 
 function Sidebar({ active, onChange }) {
   const items = [
     { key: "editor", label: "Editor", icon: FileCode2 },
     { key: "results", label: "Results", icon: BarChart3 },
     { key: "swagger", label: "Docs", icon: BookText },
+    { key: "enhancements", label: "Groq AI", icon: Zap },
   ];
 
   return (
@@ -35,7 +36,9 @@ function Sidebar({ active, onChange }) {
           );
         })}
       </nav>
-      <div className="mt-auto p-3 text-xs text-muted-foreground">v1.0.0</div>
+      <div className="mt-auto p-3 text-xs text-muted-foreground">
+        v2.0.0-enhanced
+      </div>
     </aside>
   );
 }
