@@ -130,7 +130,9 @@ async def login(credentials: UserCredentials):
             params = []
             if required_params:
                 if http_method.upper() in ['POST', 'PUT', 'PATCH']:
-                    request_model = f"{function_name.title().replace('_', '')}Request"
+                    # Consistent model name generation
+                    clean_function_name = function_name.replace('-', '').replace(' ', '').replace('_', '')
+                    request_model = f"{clean_function_name.title()}Request"
                     params.append(f"request: {request_model}")
                 else:  # GET requests use query parameters
                     for param in required_params:
@@ -453,8 +455,10 @@ class APIResponse(BaseModel):
             required_params = input_validation.get('required_params', [])
             
             if required_params and endpoint.get('http_method', 'POST').upper() in ['POST', 'PUT', 'PATCH']:
-                function_name = endpoint.get('function_name', 'Unknown').replace('-', '').replace(' ', '').replace('_', '')
-                model_name = f"{function_name.title()}Request"
+                function_name = endpoint.get('function_name', 'Unknown')
+                # Consistent model name generation (same logic as main file)
+                clean_function_name = function_name.replace('-', '').replace(' ', '').replace('_', '')
+                model_name = f"{clean_function_name.title()}Request"
                 
                 request_models += f"\nclass {model_name}(BaseModel):\n"
                 
