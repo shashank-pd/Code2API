@@ -1,51 +1,11 @@
-.App {
-  text-align: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+/* Legacy CSS file - now using Tailwind CSS */
+.swagger-container {
+  background: #1a202c;
 }
 
-.app-header {
-  padding: 2rem;
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 3rem;
-  font-weight: bold;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.app-header p {
-  margin: 0.5rem 0 0;
-  font-size: 1.2rem;
-  opacity: 0.9;
-}
-
-.app-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.tabs {
-  display: flex;
-  margin-bottom: 2rem;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.tab {
-  flex: 1;
-  padding: 1rem 2rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.swagger-ui .scheme-container {
+  background: #2d3748;
+  border: 1px solid #4a5568;
 }
 
 .tab:hover {
