@@ -3,7 +3,37 @@ import axios from 'axios';
 import MonacoEditor from '@monaco-editor/react';
 import SwaggerUI from 'swagger-ui-react';
 import 'swagger-ui-react/swagger-ui.css';
-import './App.css';
+import { motion } from 'framer-motion';
+import { 
+  Code2, 
+  Upload, 
+  Download, 
+  Github, 
+  Sparkles, 
+  Zap, 
+  Shield, 
+  TrendingUp,
+  FileText,
+  Globe,
+  Star,
+  GitFork,
+  Lock,
+  Package
+} from 'lucide-react';
+
+// UI Components
+import { Button } from './components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
+
+// Magic UI Components
+import { BorderBeam } from './components/magicui/border-beam';
+import { ShimmerButton } from './components/magicui/shimmer-button';
+import { MagicCard } from './components/magicui/magic-card';
+import { BlurFade } from './components/magicui/blur-fade';
+import CodeFlowBackground from './components/magicui/code-flow-background';
+
+import { cn } from './lib/utils';
 
 const SUPPORTED_LANGUAGES = {
   python: { label: 'Python', extension: '.py', mode: 'python' },
@@ -294,316 +324,704 @@ class UserManager {
   };
 
   return (
-    <div className="App">
-      <header className="app-header">
-        <h1>🚀 Code2API</h1>
-        <p>AI-powered system that converts source code into APIs</p>
-      </header>
-
-      <div className="app-content">
-        <div className="tabs">
-          <button 
-            className={activeTab === 'editor' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('editor')}
-          >
-            Code Editor
-          </button>
-          <button 
-            className={activeTab === 'results' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('results')}
-            disabled={!analysis}
-          >
-            Analysis Results
-          </button>
-          <button 
-            className={activeTab === 'swagger' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('swagger')}
-            disabled={!analysis?.analysis?.api_endpoints}
-          >
-            API Documentation
-          </button>
-        </div>
-
-        {activeTab === 'editor' && (
-          <div className="editor-tab">
-            <div className="input-mode-selector">
-              <button 
-                className={inputMode === 'code' ? 'mode-btn active' : 'mode-btn'}
-                onClick={() => setInputMode('code')}
-              >
-                📝 Code Editor
-              </button>
-              <button 
-                className={inputMode === 'repo' ? 'mode-btn active' : 'mode-btn'}
-                onClick={() => setInputMode('repo')}
-              >
-                📦 GitHub Repository
-              </button>
-            </div>
-
-            {inputMode === 'code' ? (
-              <>
-                <div className="controls">
-                  <div className="control-group">
-                    <label>Language:</label>
-                    <select 
-                      value={language} 
-                      onChange={(e) => setLanguage(e.target.value)}
-                    >
-                      {Object.entries(SUPPORTED_LANGUAGES).map(([key, lang]) => (
-                        <option key={key} value={key}>{lang.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="control-group">
-                    <label>Filename:</label>
-                    <input 
-                      type="text" 
-                      value={filename}
-                      onChange={(e) => setFilename(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="control-group">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      multiple
-                      accept=".py,.js,.jsx,.ts,.tsx,.java"
-                      onChange={uploadFiles}
-                      style={{ display: 'none' }}
-                    />
-                    <button onClick={() => fileInputRef.current?.click()}>
-                      Upload Files
-                    </button>
-                  </div>
-
-                  <button 
-                    onClick={analyzeCode} 
-                    disabled={loading}
-                    className="analyze-btn"
-                  >
-                    {loading ? 'Analyzing...' : 'Analyze Code'}
-                  </button>
-                </div>
-
-                <div className="editor-container">
-                  <MonacoEditor
-                    height="500px"
-                    language={SUPPORTED_LANGUAGES[language].mode}
-                    value={code}
-                    onChange={setCode}
-                    theme="vs-dark"
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 14,
-                      lineNumbers: 'on',
-                      roundedSelection: false,
-                      scrollBeyondLastLine: false,
-                      automaticLayout: true
-                    }}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="repo-controls">
-                  <div className="control-group repo-url-group">
-                    <label>GitHub Repository URL:</label>
-                    <input 
-                      type="text" 
-                      value={repoUrl}
-                      onChange={(e) => setRepoUrl(e.target.value)}
-                      placeholder="https://github.com/owner/repo or owner/repo"
-                      className="repo-url-input"
-                    />
-                  </div>
-
-                  <div className="control-group">
-                    <label>Branch:</label>
-                    <input 
-                      type="text" 
-                      value={branch}
-                      onChange={(e) => setBranch(e.target.value)}
-                      placeholder="main"
-                    />
-                  </div>
-
-                  <button 
-                    onClick={analyzeCode} 
-                    disabled={loading}
-                    className="analyze-btn"
-                  >
-                    {loading ? 'Analyzing Repository...' : 'Analyze Repository'}
-                  </button>
-                </div>
-
-                <div className="repo-examples">
-                  <h3>Try these example repositories:</h3>
-                  <div className="example-repos">
-                    <button 
-                      className="example-repo-btn"
-                      onClick={() => setRepoUrl('fastapi/fastapi')}
-                    >
-                      🚀 fastapi/fastapi
-                    </button>
-                    <button 
-                      className="example-repo-btn"
-                      onClick={() => setRepoUrl('pallets/flask')}
-                    >
-                      🌶️ pallets/flask
-                    </button>
-                    <button 
-                      className="example-repo-btn"
-                      onClick={() => setRepoUrl('microsoft/vscode')}
-                    >
-                      💻 microsoft/vscode
-                    </button>
-                    <button 
-                      className="example-repo-btn"
-                      onClick={() => setRepoUrl('facebook/react')}
-                    >
-                      ⚛️ facebook/react
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {error && (
-              <div className="error">
-                <strong>Error:</strong> {error}
-              </div>
-            )}
+    <div className="min-h-screen relative overflow-hidden bg-gray-900">
+      {/* Code Flow Live Background */}
+      <CodeFlowBackground />
+      
+      {/* Header */}
+      <BlurFade delay={0.2}>
+        <header className="relative z-10 text-center py-16 px-6">
+          {/* Hero Background Effects */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Glowing backdrop */}
+            <motion.div
+              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full"
+              style={{
+                background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 50%, transparent 100%)',
+                filter: 'blur(60px)',
+              }}
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.6, 0.3],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+            
+            {/* Animated code brackets with lighting */}
+            <motion.div
+              className="absolute top-1/2 left-1/4 transform -translate-y-1/2 text-6xl font-mono"
+              style={{
+                background: 'linear-gradient(45deg, rgba(59, 130, 246, 0.6), rgba(168, 85, 247, 0.4))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 15px rgba(59, 130, 246, 0.4)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.3))',
+              }}
+              animate={{
+                x: [0, -20, 0],
+                opacity: [0.4, 0.8, 0.4],
+                filter: [
+                  'drop-shadow(0 0 15px rgba(59, 130, 246, 0.4)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.3))',
+                  'drop-shadow(0 0 25px rgba(59, 130, 246, 0.6)) drop-shadow(0 0 35px rgba(168, 85, 247, 0.5))',
+                  'drop-shadow(0 0 15px rgba(59, 130, 246, 0.4)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.3))',
+                ]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              {"<"}
+            </motion.div>
+            
+            <motion.div
+              className="absolute top-1/2 right-1/4 transform -translate-y-1/2 text-6xl font-mono"
+              style={{
+                background: 'linear-gradient(45deg, rgba(34, 197, 94, 0.6), rgba(59, 130, 246, 0.4))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 15px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 25px rgba(59, 130, 246, 0.3))',
+              }}
+              animate={{
+                x: [0, 20, 0],
+                opacity: [0.4, 0.8, 0.4],
+                filter: [
+                  'drop-shadow(0 0 15px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 25px rgba(59, 130, 246, 0.3))',
+                  'drop-shadow(0 0 25px rgba(34, 197, 94, 0.6)) drop-shadow(0 0 35px rgba(59, 130, 246, 0.5))',
+                  'drop-shadow(0 0 15px rgba(34, 197, 94, 0.4)) drop-shadow(0 0 25px rgba(59, 130, 246, 0.3))',
+                ]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.5
+              }}
+            >
+              {"/>"}
+            </motion.div>
+            
+            {/* Floating geometric shapes */}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <motion.div
+                key={`hero-shape-${i}`}
+                className="absolute w-3 h-3 border border-purple-400/30"
+                style={{
+                  left: `${20 + i * 12}%`,
+                  top: `${30 + Math.sin(i * 1.2) * 20}%`,
+                  borderRadius: i % 2 === 0 ? '50%' : '0%',
+                }}
+                animate={{
+                  y: [0, -30, 0],
+                  rotate: [0, 180, 360],
+                  opacity: [0.3, 0.7, 0.3],
+                }}
+                transition={{
+                  duration: 4 + i,
+                  repeat: Infinity,
+                  delay: i * 0.5,
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+            
+            {/* Light rays */}
+            <motion.div
+              className="absolute top-0 left-1/2 transform -translate-x-1/2 w-px h-full bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent"
+              animate={{
+                opacity: [0, 1, 0],
+                scaleY: [0.5, 1, 0.5],
+              }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+            
+            <motion.div
+              className="absolute top-0 left-1/3 transform -translate-x-1/2 w-px h-full bg-gradient-to-b from-transparent via-purple-400/20 to-transparent"
+              animate={{
+                opacity: [0, 0.8, 0],
+                scaleY: [0.3, 1, 0.3],
+              }}
+              transition={{
+                duration: 6,
+                repeat: Infinity,
+                delay: 1,
+                ease: "easeInOut"
+              }}
+            />
+            
+            <motion.div
+              className="absolute top-0 right-1/3 transform translate-x-1/2 w-px h-full bg-gradient-to-b from-transparent via-blue-400/20 to-transparent"
+              animate={{
+                opacity: [0, 0.8, 0],
+                scaleY: [0.3, 1, 0.3],
+              }}
+              transition={{
+                duration: 6,
+                repeat: Infinity,
+                delay: 2,
+                ease: "easeInOut"
+              }}
+            />
           </div>
-        )}
-
-        {activeTab === 'results' && analysis && (
-          <div className="results-tab">
-            <div className="results-header">
-              <h2>Analysis Results</h2>
-              {analysis.generated_api_path && (
-                <button onClick={downloadAPI} className="download-btn">
-                  Download Generated API
-                </button>
-              )}
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="inline-flex items-center gap-3 mb-6 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+              <Zap className="w-5 h-5 text-yellow-400" />
+              <span className="text-sm font-medium text-gray-200">AI-Powered Code Analysis</span>
+              <Sparkles className="w-5 h-5 text-purple-400" />
             </div>
+            
+            <h1 className="relative text-6xl md:text-7xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent mb-6">
+              {/* Professional subtle glow */}
+              <motion.span 
+                className="absolute inset-0 text-6xl md:text-7xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent"
+                style={{
+                  filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.3)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.2))',
+                }}
+                animate={{
+                  filter: [
+                    'drop-shadow(0 0 20px rgba(59, 130, 246, 0.3)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.2))',
+                    'drop-shadow(0 0 30px rgba(59, 130, 246, 0.4)) drop-shadow(0 0 60px rgba(168, 85, 247, 0.3))',
+                    'drop-shadow(0 0 20px rgba(59, 130, 246, 0.3)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.2))',
+                  ]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                Code2API
+              </motion.span>
+              
+              {/* Elegant shimmer effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                style={{
+                  transform: 'translateX(-100%)',
+                  clipPath: 'inset(0)',
+                }}
+                animate={{
+                  transform: ['translateX(-100%)', 'translateX(200%)'],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  repeatDelay: 1.5,
+                  ease: "easeInOut"
+                }}
+              />
+              
+              {/* Main text */}
+              <span className="relative drop-shadow-lg">Code2API</span>
+            </h1>
+            
+            <div className="relative">
+              {/* Subtitle glow */}
+              <p className="absolute inset-0 text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed blur-sm opacity-30">
+                Transform your source code into production-ready APIs with AI-powered analysis and generation
+              </p>
+              <p className="relative text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                Transform your source code into production-ready APIs with AI-powered analysis and generation
+              </p>
+            </div>
+          </motion.div>
+        </header>
+      </BlurFade>
 
-            {analysis.analysis?.repository_info && (
-              <div className="repo-info-card">
-                <h3>📦 Repository Information</h3>
-                <div className="repo-details">
-                  <div className="repo-detail">
-                    <strong>Name:</strong> {analysis.analysis.repository_info.name}
-                  </div>
-                  <div className="repo-detail">
-                    <strong>Description:</strong> {analysis.analysis.repository_info.description || 'No description'}
-                  </div>
-                  <div className="repo-detail">
-                    <strong>Language:</strong> {analysis.analysis.repository_info.language || 'Multiple'}
-                  </div>
-                  <div className="repo-detail">
-                    <strong>Stars:</strong> ⭐ {analysis.analysis.repository_info.stars || 0}
-                  </div>
-                  <div className="repo-detail">
-                    <strong>Forks:</strong> 🍴 {analysis.analysis.repository_info.forks || 0}
-                  </div>
-                  <div className="repo-detail">
-                    <strong>Files Analyzed:</strong> 📄 {analysis.analysis.files_analyzed || 0}
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* Main Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 pb-16">
+        {/* Tab Navigation */}
+        <BlurFade delay={0.4}>
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {[
+              { id: 'editor', label: 'Code Editor', icon: Code2 },
+              { id: 'results', label: 'Analysis Results', icon: TrendingUp, disabled: !analysis },
+              { id: 'swagger', label: 'API Documentation', icon: FileText, disabled: !analysis?.analysis?.api_endpoints }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                disabled={tab.disabled}
+                className={cn(
+                  "flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 min-h-[48px]",
+                  activeTab === tab.id
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                    : tab.disabled
+                    ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 hover:text-white"
+                )}
+              >
+                <tab.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="leading-none">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </BlurFade>
 
-            {analysis.analysis?.statistics && (
-              <div className="stats-card">
-                <h3>📊 Code Statistics</h3>
-                <div className="stats-grid">
-                  <div className="stat-item">
-                    <div className="stat-number">{analysis.analysis.statistics.total_files}</div>
-                    <div className="stat-label">Total Files</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-number">{analysis.analysis.statistics.total_lines?.toLocaleString()}</div>
-                    <div className="stat-label">Total Lines</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-number">{Object.keys(analysis.analysis.statistics.languages || {}).length}</div>
-                    <div className="stat-label">Languages</div>
-                  </div>
-                  <div className="stat-item">
-                    <div className="stat-number">{analysis.analysis.api_endpoints?.length || 0}</div>
-                    <div className="stat-label">API Endpoints</div>
-                  </div>
+        {/* Editor Tab */}
+        {activeTab === 'editor' && (
+          <BlurFade delay={0.6}>
+            <div className="space-y-8">
+              {/* Input Mode Selector */}
+              <MagicCard className="p-6">
+                <div className="flex flex-wrap gap-4 justify-center mb-6">
+                  <button
+                    onClick={() => setInputMode('code')}
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 min-h-[48px]",
+                      inputMode === 'code'
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
+                        : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50"
+                    )}
+                  >
+                    <Code2 className="w-4 h-4 flex-shrink-0" />
+                    <span className="leading-none">Code Editor</span>
+                  </button>
+                  <button
+                    onClick={() => setInputMode('repo')}
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 min-h-[48px]",
+                      inputMode === 'repo'
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
+                        : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50"
+                    )}
+                  >
+                    <Github className="w-4 h-4 flex-shrink-0" />
+                    <span className="leading-none">GitHub Repository</span>
+                  </button>
                 </div>
-                
-                {analysis.analysis.statistics.languages && (
-                  <div className="language-breakdown">
-                    <h4>Language Breakdown:</h4>
-                    {Object.entries(analysis.analysis.statistics.languages).map(([lang, count]) => (
-                      <div key={lang} className="language-item">
-                        <span className="language-name">{lang}</span>
-                        <span className="language-count">{count} files</span>
+
+                {inputMode === 'code' ? (
+                  <div className="space-y-6">
+                    {/* Controls */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Language
+                        </label>
+                        <select
+                          value={language}
+                          onChange={(e) => setLanguage(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          {Object.entries(SUPPORTED_LANGUAGES).map(([key, lang]) => (
+                            <option key={key} value={key}>{lang.label}</option>
+                          ))}
+                        </select>
                       </div>
-                    ))}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Filename
+                        </label>
+                        <Input
+                          value={filename}
+                          onChange={(e) => setFilename(e.target.value)}
+                          className="bg-gray-700 border-gray-600 text-white"
+                        />
+                      </div>
+
+                      <div className="flex items-end">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          multiple
+                          accept=".py,.js,.jsx,.ts,.tsx,.java"
+                          onChange={uploadFiles}
+                          className="hidden"
+                        />
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
+                          className="w-full flex items-center justify-center gap-2 min-h-[48px]"
+                        >
+                          <Upload className="w-4 h-4 flex-shrink-0" />
+                          <span className="leading-none">Upload Files</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Code Editor */}
+                    <div className="relative overflow-hidden rounded-lg">
+                      <BorderBeam />
+                      <MonacoEditor
+                        height="500px"
+                        language={SUPPORTED_LANGUAGES[language].mode}
+                        value={code}
+                        onChange={setCode}
+                        theme="vs-dark"
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: 'on',
+                          roundedSelection: false,
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          padding: { top: 20 }
+                        }}
+                      />
+                    </div>
+
+                    {/* Analyze Button */}
+                    <div className="flex justify-center">
+                      <ShimmerButton
+                        onClick={analyzeCode}
+                        disabled={loading}
+                        className="px-8 py-4 text-lg"
+                      >
+                        {loading ? (
+                          <div className="flex items-center justify-center">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2 flex-shrink-0"
+                            />
+                            <span className="leading-none">Analyzing...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <Zap className="w-5 h-5 mr-2 flex-shrink-0" />
+                            <span className="leading-none">Analyze Code</span>
+                          </div>
+                        )}
+                      </ShimmerButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Repository Controls */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          GitHub Repository URL
+                        </label>
+                        <Input
+                          value={repoUrl}
+                          onChange={(e) => setRepoUrl(e.target.value)}
+                          placeholder="https://github.com/owner/repo or owner/repo"
+                          className="bg-gray-700 border-gray-600 text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Branch
+                        </label>
+                        <Input
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          placeholder="main"
+                          className="bg-gray-700 border-gray-600 text-white"
+                        />
+                      </div>
+
+                      <div className="flex items-end">
+                        <ShimmerButton
+                          onClick={analyzeCode}
+                          disabled={loading}
+                          className="w-full"
+                        >
+                          {loading ? (
+                            <div className="flex items-center justify-center">
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2 flex-shrink-0"
+                              />
+                              <span className="leading-none">Analyzing...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <Github className="w-4 h-4 mr-2 flex-shrink-0" />
+                              <span className="leading-none">Analyze Repo</span>
+                            </div>
+                          )}
+                        </ShimmerButton>
+                      </div>
+                    </div>
+
+                    {/* Example Repositories */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-4">Try these example repositories:</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {[
+                          { repo: 'fastapi/fastapi', label: '🚀 FastAPI', desc: 'Modern Python API framework' },
+                          { repo: 'pallets/flask', label: '🌶️ Flask', desc: 'Lightweight Python web framework' },
+                          { repo: 'microsoft/vscode', label: '💻 VS Code', desc: 'Popular code editor' },
+                          { repo: 'facebook/react', label: '⚛️ React', desc: 'JavaScript UI library' }
+                        ].map((example) => (
+                          <button
+                            key={example.repo}
+                            onClick={() => setRepoUrl(example.repo)}
+                            className="p-4 text-left bg-gray-800/50 border border-gray-700 rounded-lg hover:bg-gray-700/50 hover:border-gray-600 transition-all group"
+                          >
+                            <div className="font-medium text-white group-hover:text-blue-400 transition-colors">
+                              {example.label}
+                            </div>
+                            <div className="text-sm text-gray-400 mt-1">
+                              {example.desc}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            <div className="results-grid">
-              <div className="result-card">
-                <h3>API Endpoints</h3>
-                <div className="endpoint-list">
-                  {analysis.analysis.api_endpoints?.map((endpoint, index) => (
-                    <div key={index} className="endpoint-item">
-                      <span className={`method ${endpoint.http_method.toLowerCase()}`}>
-                        {endpoint.http_method}
-                      </span>
-                      <span className="path">{endpoint.endpoint_path}</span>
-                      <span className="description">{endpoint.description}</span>
-                      {endpoint.needs_auth && <span className="auth-badge">🔒 Auth Required</span>}
-                      {endpoint.class_name && <span className="class-badge">📦 {endpoint.class_name}</span>}
-                    </div>
-                  ))}
-                  {!analysis.analysis.api_endpoints?.length && (
-                    <div className="no-results">No API endpoints generated</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="result-card">
-                <h3>Security Recommendations</h3>
-                <ul>
-                  {analysis.analysis.security_recommendations?.map((rec, index) => (
-                    <li key={index}>{rec}</li>
-                  ))}
-                  {!analysis.analysis.security_recommendations?.length && (
-                    <li>No security issues detected</li>
-                  )}
-                </ul>
-              </div>
-
-              <div className="result-card">
-                <h3>Optimization Suggestions</h3>
-                <ul>
-                  {analysis.analysis.optimization_suggestions?.map((sug, index) => (
-                    <li key={index}>{sug}</li>
-                  ))}
-                  {!analysis.analysis.optimization_suggestions?.length && (
-                    <li>No optimization suggestions</li>
-                  )}
-                </ul>
-              </div>
+                {/* Error Display */}
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200"
+                  >
+                    <strong>Error:</strong> {error}
+                  </motion.div>
+                )}
+              </MagicCard>
             </div>
-          </div>
+          </BlurFade>
         )}
 
+        {/* Results Tab */}
+        {activeTab === 'results' && analysis && (
+          <BlurFade delay={0.6}>
+            <div className="space-y-8">
+              {/* Results Header */}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="text-3xl font-bold text-white">Analysis Results</h2>
+                {analysis.generated_api_path && (
+                  <Button
+                    onClick={downloadAPI}
+                    className="bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 min-h-[48px]"
+                  >
+                    <Download className="w-4 h-4 flex-shrink-0" />
+                    <span className="leading-none">Download API</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Repository Info */}
+              {analysis.analysis?.repository_info && (
+                <MagicCard className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Globe className="w-6 h-6 text-blue-400" />
+                    <h3 className="text-xl font-semibold text-white">Repository Information</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Name</div>
+                      <div className="text-white font-medium">{analysis.analysis.repository_info.name}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Language</div>
+                      <div className="text-white font-medium">{analysis.analysis.repository_info.language || 'Multiple'}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Files Analyzed</div>
+                      <div className="text-white font-medium">{analysis.analysis.files_analyzed || 0}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Stars</div>
+                      <div className="flex items-center text-white font-medium">
+                        <Star className="w-4 h-4 text-yellow-400 mr-1" />
+                        {analysis.analysis.repository_info.stars || 0}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Forks</div>
+                      <div className="flex items-center text-white font-medium">
+                        <GitFork className="w-4 h-4 text-gray-400 mr-1" />
+                        {analysis.analysis.repository_info.forks || 0}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Description</div>
+                      <div className="text-gray-300 text-sm">{analysis.analysis.repository_info.description || 'No description'}</div>
+                    </div>
+                  </div>
+                </MagicCard>
+              )}
+
+              {/* Statistics */}
+              {analysis.analysis?.statistics && (
+                <MagicCard className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <TrendingUp className="w-6 h-6 text-green-400" />
+                    <h3 className="text-xl font-semibold text-white">Code Statistics</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-400">{analysis.analysis.statistics.total_files}</div>
+                      <div className="text-sm text-gray-400">Total Files</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-400">{analysis.analysis.statistics.total_lines?.toLocaleString()}</div>
+                      <div className="text-sm text-gray-400">Total Lines</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-400">{Object.keys(analysis.analysis.statistics.languages || {}).length}</div>
+                      <div className="text-sm text-gray-400">Languages</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-yellow-400">{analysis.analysis.api_endpoints?.length || 0}</div>
+                      <div className="text-sm text-gray-400">API Endpoints</div>
+                    </div>
+                  </div>
+
+                  {analysis.analysis.statistics.languages && (
+                    <div>
+                      <h4 className="text-lg font-medium text-white mb-3">Language Breakdown</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {Object.entries(analysis.analysis.statistics.languages).map(([lang, count]) => (
+                          <div key={lang} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                            <span className="text-white font-medium">{lang}</span>
+                            <span className="text-gray-400 text-sm">{count} files</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </MagicCard>
+              )}
+
+              {/* Results Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* API Endpoints */}
+                <MagicCard className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <Package className="w-5 h-5 text-blue-400" />
+                      API Endpoints
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analysis.analysis.api_endpoints?.map((endpoint, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="p-4 bg-gray-800/50 rounded-lg border border-gray-700"
+                        >
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className={cn(
+                              "px-2 py-1 rounded text-xs font-medium uppercase",
+                              endpoint.http_method.toLowerCase() === 'get' && "bg-blue-600 text-white",
+                              endpoint.http_method.toLowerCase() === 'post' && "bg-green-600 text-white",
+                              endpoint.http_method.toLowerCase() === 'put' && "bg-yellow-600 text-white",
+                              endpoint.http_method.toLowerCase() === 'delete' && "bg-red-600 text-white"
+                            )}>
+                              {endpoint.http_method}
+                            </span>
+                            <code className="text-gray-300 bg-gray-800 px-2 py-1 rounded text-sm">
+                              {endpoint.endpoint_path}
+                            </code>
+                            {endpoint.needs_auth && (
+                              <span className="flex items-center gap-1 px-2 py-1 bg-amber-600/20 text-amber-400 rounded text-xs">
+                                <Lock className="w-3 h-3" />
+                                Auth Required
+                              </span>
+                            )}
+                            {endpoint.class_name && (
+                              <span className="px-2 py-1 bg-purple-600/20 text-purple-400 rounded text-xs">
+                                {endpoint.class_name}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-300 text-sm">{endpoint.description}</p>
+                        </motion.div>
+                      ))}
+                      {!analysis.analysis.api_endpoints?.length && (
+                        <div className="text-center py-8 text-gray-400">
+                          No API endpoints generated
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </MagicCard>
+
+                {/* Security & Optimization */}
+                <div className="space-y-6">
+                  <MagicCard>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-white">
+                        <Shield className="w-5 h-5 text-red-400" />
+                        Security
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {analysis.analysis.security_recommendations?.map((rec, index) => (
+                          <li key={index} className="text-sm text-gray-300 flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full mt-2 flex-shrink-0" />
+                            {rec}
+                          </li>
+                        ))}
+                        {!analysis.analysis.security_recommendations?.length && (
+                          <li className="text-sm text-gray-400">No security issues detected</li>
+                        )}
+                      </ul>
+                    </CardContent>
+                  </MagicCard>
+
+                  <MagicCard>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-white">
+                        <Zap className="w-5 h-5 text-green-400" />
+                        Optimization
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {analysis.analysis.optimization_suggestions?.map((sug, index) => (
+                          <li key={index} className="text-sm text-gray-300 flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-green-400 rounded-full mt-2 flex-shrink-0" />
+                            {sug}
+                          </li>
+                        ))}
+                        {!analysis.analysis.optimization_suggestions?.length && (
+                          <li className="text-sm text-gray-400">No optimization suggestions</li>
+                        )}
+                      </ul>
+                    </CardContent>
+                  </MagicCard>
+                </div>
+              </div>
+            </div>
+          </BlurFade>
+        )}
+
+        {/* Swagger Tab */}
         {activeTab === 'swagger' && analysis?.analysis?.api_endpoints && (
-          <div className="swagger-tab">
-            <SwaggerUI spec={generateSwaggerSpec()} />
-          </div>
+          <BlurFade delay={0.6}>
+            <MagicCard className="overflow-hidden">
+              <div className="p-6 border-b border-gray-700">
+                <h2 className="text-2xl font-bold text-white">API Documentation</h2>
+                <p className="text-gray-400 mt-1">Interactive API documentation generated from your code</p>
+              </div>
+              <div className="swagger-container">
+                <SwaggerUI spec={generateSwaggerSpec()} />
+              </div>
+            </MagicCard>
+          </BlurFade>
         )}
       </div>
     </div>
