@@ -103,8 +103,8 @@ https://github.com/user-attachments/assets/8f2f8dd9-abed-4922-8fa0-e94aaabe9af7
 
 2. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your Groq API key
+   cp .env.template .env
+   # Edit .env with your API keys (Groq API key required)
    ```
 
 3. **Install dependencies**
