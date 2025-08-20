@@ -28,12 +28,10 @@
 
 <div align="center">
 
-### See Code2API in Action!
 
-<!-- Replace this URL with your actual video -->
-[![Code2API Demo Video](https://img.shields.io/badge/▶️%20Watch%20Demo-Click%20Here-red?style=for-the-badge&logo=youtube)](YOUR_VIDEO_URL_HERE)
+https://github.com/user-attachments/assets/8f2f8dd9-abed-4922-8fa0-e94aaabe9af7
 
-*Click above to watch a complete walkthrough of Code2API's features and capabilities*
+
 
 </div>
 
