@@ -166,7 +166,6 @@ const CodeFlowBackground = () => {
         />
       ))}
 
-      {/* Terminal cursor blinking */}
       <motion.div
         className="absolute bottom-10 left-10 text-green-400 font-mono text-sm opacity-60"
         animate={{
@@ -180,7 +179,6 @@ const CodeFlowBackground = () => {
         $ generating-api |
       </motion.div>
 
-      {/* JSON structure visualization */}
       <motion.div
         className="absolute top-20 right-20 text-xs font-mono text-blue-400/20 whitespace-pre"
         animate={{

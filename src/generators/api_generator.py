@@ -63,10 +63,8 @@ class APIGenerator:
     def _generate_main_file(self, analysis: Dict[str, Any], project_name: str) -> str:
         """Generate the main FastAPI application file with AI-powered implementation"""
         
-        # Generate the main file using pure Python string formatting instead of Jinja2
         endpoints = analysis.get("api_endpoints", [])
         
-        # Start building the file content
         imports = '''from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware

@@ -325,12 +325,10 @@ class UserManager {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-      {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <Meteors number={20} />
       </div>
       
-      {/* Header */}
       <BlurFade delay={0.2}>
         <header className="relative z-10 text-center py-16 px-6">
           <motion.div
@@ -356,9 +354,7 @@ class UserManager {
         </header>
       </BlurFade>
 
-      {/* Main Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 pb-16">
-        {/* Tab Navigation */}
         <BlurFade delay={0.4}>
           <div className="flex flex-wrap justify-center gap-2 mb-8">
             {[
@@ -386,11 +382,9 @@ class UserManager {
           </div>
         </BlurFade>
 
-        {/* Editor Tab */}
         {activeTab === 'editor' && (
           <BlurFade delay={0.6}>
             <div className="space-y-8">
-              {/* Input Mode Selector */}
               <MagicCard className="p-6">
                 <div className="flex flex-wrap gap-4 justify-center mb-6">
                   <button
@@ -469,7 +463,6 @@ class UserManager {
                       </div>
                     </div>
 
-                    {/* Code Editor */}
                     <div className="relative overflow-hidden rounded-lg">
                       <BorderBeam />
                       <MonacoEditor
@@ -490,7 +483,6 @@ class UserManager {
                       />
                     </div>
 
-                    {/* Analyze Button */}
                     <div className="flex justify-center">
                       <ShimmerButton
                         onClick={analyzeCode}
@@ -517,7 +509,6 @@ class UserManager {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Repository Controls */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -596,7 +587,6 @@ class UserManager {
                   </div>
                 )}
 
-                {/* Error Display */}
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -715,9 +705,7 @@ class UserManager {
                 </MagicCard>
               )}
 
-              {/* Results Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* API Endpoints */}
                 <MagicCard className="lg:col-span-2">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">
@@ -772,7 +760,6 @@ class UserManager {
                   </CardContent>
                 </MagicCard>
 
-                {/* Security & Optimization */}
                 <div className="space-y-6">
                   <MagicCard>
                     <CardHeader>
@@ -823,7 +810,6 @@ class UserManager {
           </BlurFade>
         )}
 
-        {/* Swagger Tab */}
         {activeTab === 'swagger' && analysis?.analysis?.api_endpoints && (
           <BlurFade delay={0.6}>
             <MagicCard className="overflow-hidden">

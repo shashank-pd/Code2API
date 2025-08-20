@@ -325,15 +325,11 @@ class UserManager {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gray-900">
-      {/* Code Flow Live Background */}
       <CodeFlowBackground />
       
-      {/* Header */}
       <BlurFade delay={0.2}>
         <header className="relative z-10 text-center py-16 px-6">
-          {/* Hero Background Effects */}
           <div className="absolute inset-0 pointer-events-none">
-            {/* Glowing backdrop */}
             <motion.div
               className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full"
               style={{
@@ -525,12 +521,10 @@ class UserManager {
                 }}
               />
               
-              {/* Main text */}
               <span className="relative drop-shadow-lg">Code2API</span>
             </h1>
             
             <div className="relative">
-              {/* Subtitle glow */}
               <p className="absolute inset-0 text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed blur-sm opacity-30">
                 Transform your source code into production-ready APIs with AI-powered analysis and generation
               </p>
@@ -542,9 +536,7 @@ class UserManager {
         </header>
       </BlurFade>
 
-      {/* Main Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 pb-16">
-        {/* Tab Navigation */}
         <BlurFade delay={0.4}>
           <div className="flex flex-wrap justify-center gap-2 mb-8">
             {[
@@ -572,11 +564,9 @@ class UserManager {
           </div>
         </BlurFade>
 
-        {/* Editor Tab */}
         {activeTab === 'editor' && (
           <BlurFade delay={0.6}>
             <div className="space-y-8">
-              {/* Input Mode Selector */}
               <MagicCard className="p-6">
                 <div className="flex flex-wrap gap-4 justify-center mb-6">
                   <button
@@ -858,7 +848,6 @@ class UserManager {
                 </MagicCard>
               )}
 
-              {/* Statistics */}
               {analysis.analysis?.statistics && (
                 <MagicCard className="p-6">
                   <div className="flex items-center gap-3 mb-6">
@@ -901,9 +890,7 @@ class UserManager {
                 </MagicCard>
               )}
 
-              {/* Results Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* API Endpoints */}
                 <MagicCard className="lg:col-span-2">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">
@@ -958,7 +945,6 @@ class UserManager {
                   </CardContent>
                 </MagicCard>
 
-                {/* Security & Optimization */}
                 <div className="space-y-6">
                   <MagicCard>
                     <CardHeader>
@@ -1009,7 +995,6 @@ class UserManager {
           </BlurFade>
         )}
 
-        {/* Swagger Tab */}
         {activeTab === 'swagger' && analysis?.analysis?.api_endpoints && (
           <BlurFade delay={0.6}>
             <MagicCard className="overflow-hidden">
