@@ -196,6 +196,9 @@ class AIAnalyzer:
                 )
                 
                 if should_be_endpoint:
+                    # Determine authentication level
+                    auth_level = self._determine_auth_level(func)
+                    
                     return {
                         "function_name": func.name,
                         "http_method": analysis.get("http_method", "POST"),
@@ -204,8 +207,10 @@ class AIAnalyzer:
                         "needs_auth": (
                             analysis.get("needs_authentication", "").lower() == "yes" or
                             analysis.get("authentication_required", "").lower() == "yes" or
-                            analysis.get("requires_authentication", "").lower() == "yes"
+                            analysis.get("requires_authentication", "").lower() == "yes" or
+                            auth_level != "none"
                         ),
+                        "auth_level": auth_level,
                         "input_validation": analysis.get("input_validation_requirements", analysis.get("input_validation", [])),
                         "response_format": analysis.get("expected_response_format", analysis.get("response_format", {})),
                         "parameters": func.parameters,
@@ -216,6 +221,59 @@ class AIAnalyzer:
             print(f"Error analyzing function {func.name}: {e}")
         
         return None
+    
+    def _determine_auth_level(self, func: Function) -> str:
+        """Determine the required authentication level for a function"""
+        function_name = func.name.lower()
+        docstring = (func.docstring or "").lower()
+        param_names = " ".join([p.get('name', '').lower() for p in func.parameters])
+        
+        text_to_check = f"{function_name} {docstring} {param_names}"
+        
+        # Critical operations requiring admin authentication
+        admin_keywords = [
+            'delete', 'remove', 'destroy', 'drop', 'truncate', 'unlink', 'rmdir',
+            'admin', 'root', 'sudo', 'exec', 'eval', 'system', 'shell', 'command',
+            'privileged', 'dangerous', 'critical'
+        ]
+        
+        # Operations requiring user authentication
+        user_keywords = [
+            'create', 'update', 'modify', 'post', 'put', 'patch', 'insert',
+            'add', 'edit', 'change', 'save', 'write', 'upload', 'submit'
+        ]
+        
+        # Sensitive operations requiring authentication
+        sensitive_keywords = [
+            'password', 'secret', 'token', 'key', 'auth', 'login', 'user',
+            'payment', 'charge', 'refund', 'transfer', 'credit', 'debit',
+            'personal', 'private', 'confidential', 'sensitive'
+        ]
+        
+        # Read operations that might need readonly authentication
+        readonly_keywords = [
+            'get', 'fetch', 'retrieve', 'list', 'view', 'read', 'search',
+            'find', 'query', 'select', 'show', 'display'
+        ]
+        
+        # Check for admin-level operations
+        if any(keyword in text_to_check for keyword in admin_keywords):
+            return "admin"
+        
+        # Check for user-level operations
+        if any(keyword in text_to_check for keyword in user_keywords):
+            return "user"
+        
+        # Check for sensitive operations
+        if any(keyword in text_to_check for keyword in sensitive_keywords):
+            return "user"
+        
+        # Check for readonly operations
+        if any(keyword in text_to_check for keyword in readonly_keywords):
+            return "readonly"
+        
+        # Default to no authentication for computational functions
+        return "none"
     
     def _analyze_class_for_api(self, cls: Class, language: str) -> List[Dict[str, Any]]:
         """Analyze a class to extract API endpoints from its methods"""
@@ -251,28 +309,62 @@ class AIAnalyzer:
         return endpoints
     
     def _analyze_security(self, parsed_code: ParsedCode) -> List[str]:
-        """Analyze code for security considerations"""
+        """Analyze code for security considerations with enhanced detection"""
         recommendations = []
         
-        # Check for common security patterns
-        security_keywords = [
+        # Enhanced security keywords categorized by risk level
+        critical_keywords = [
+            'delete', 'remove', 'drop', 'truncate', 'destroy', 'unlink', 'rmdir',
+            'admin', 'root', 'sudo', 'exec', 'eval', 'system', 'shell'
+        ]
+        
+        auth_required_keywords = [
             'password', 'secret', 'token', 'key', 'auth', 'login', 'user',
-            'admin', 'root', 'sudo', 'execute', 'eval', 'exec'
+            'create', 'update', 'modify', 'post', 'put', 'patch', 'insert'
+        ]
+        
+        sensitive_keywords = [
+            'payment', 'charge', 'refund', 'transfer', 'credit', 'debit',
+            'personal', 'private', 'confidential', 'sensitive'
+        ]
+        
+        read_only_keywords = [
+            'get', 'fetch', 'retrieve', 'list', 'view', 'read', 'search'
         ]
         
         for func in parsed_code.functions:
-            func_text = f"{func.name} {func.docstring or ''} {' '.join([p['name'] for p in func.parameters])}"
+            func_text = f"{func.name} {func.docstring or ''} {' '.join([p.get('name', '') for p in func.parameters])}"
+            func_text_lower = func_text.lower()
             
-            for keyword in security_keywords:
-                if keyword.lower() in func_text.lower():
-                    recommendations.append(f"Function '{func.name}' may need authentication - contains security-related keyword: {keyword}")
+            # Check for critical operations (always require admin auth)
+            for keyword in critical_keywords:
+                if keyword in func_text_lower:
+                    recommendations.append(f"CRITICAL: Function '{func.name}' performs dangerous operations and MUST require ADMIN authentication - keyword: {keyword}")
                     break
+            else:
+                # Check for operations requiring user authentication
+                for keyword in auth_required_keywords:
+                    if keyword in func_text_lower:
+                        recommendations.append(f"Function '{func.name}' should require USER authentication - keyword: {keyword}")
+                        break
+                else:
+                    # Check for sensitive operations
+                    for keyword in sensitive_keywords:
+                        if keyword in func_text_lower:
+                            recommendations.append(f"Function '{func.name}' handles sensitive data and should require authentication - keyword: {keyword}")
+                            break
+                    else:
+                        # Check for read-only operations (might need readonly auth)
+                        for keyword in read_only_keywords:
+                            if keyword in func_text_lower:
+                                recommendations.append(f"Function '{func.name}' is read-only but may need READONLY authentication for access control - keyword: {keyword}")
+                                break
         
-        # Check for potentially dangerous operations
-        dangerous_patterns = ['exec', 'eval', 'subprocess', 'os.system', 'shell']
+        # Check for potentially dangerous patterns in function names
+        dangerous_patterns = ['exec', 'eval', 'subprocess', 'os.system', 'shell', 'command']
         for func in parsed_code.functions:
             if any(pattern in func.name.lower() for pattern in dangerous_patterns):
-                recommendations.append(f"Function '{func.name}' performs potentially dangerous operations - requires strict access control")
+                recommendations.append(f"CRITICAL: Function '{func.name}' performs system-level operations - requires STRICT access control")
         
         return recommendations
     

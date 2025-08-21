@@ -66,7 +66,7 @@ class APIGenerator:
         endpoints = analysis.get("api_endpoints", [])
         
         imports = '''from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -77,12 +77,16 @@ import random
 from datetime import datetime
 
 from models import *
-from auth import verify_token, create_access_token'''
+from auth import (
+    verify_token, create_access_token, authenticate_user, 
+    UserRole, check_user_permission, verify_api_key, 
+    get_user_from_auth, create_api_key, api_key_header
+)'''
 
         app_setup = f'''
 app = FastAPI(
     title="{project_name.title()} API",
-    description="Auto-generated API from source code analysis",
+    description="Auto-generated API from source code analysis with enhanced authentication",
     version="1.0.0"
 )
 
@@ -95,21 +99,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {{"status": "healthy", "message": "API is running"}}
+    return {{"status": "healthy", "message": "API is running", "timestamp": datetime.utcnow().isoformat()}}
 
-# Authentication endpoint
+# Authentication endpoints
 @app.post("/auth/token")
 async def login(credentials: UserCredentials):
-    # Simple demo authentication - replace with your logic
-    if credentials.username == "demo" and credentials.password == "demo":
-        token = create_access_token(data={{"sub": credentials.username}})
-        return {{"access_token": token, "token_type": "bearer"}}
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    """Get JWT token with username/password"""
+    user = authenticate_user(credentials.username, credentials.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+            headers={{"WWW-Authenticate": "Bearer"}},
+        )
+    
+    access_token = create_access_token(data={{"sub": user["username"]}})
+    return {{
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": 1800,
+        "user": {{
+            "username": user["username"],
+            "roles": user.get("roles", [])
+        }}
+    }}
+
+@app.post("/auth/api-key")
+async def create_user_api_key(credentials: UserCredentials):
+    """Create API key for authentication"""
+    user = authenticate_user(credentials.username, credentials.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
+        )
+    
+    api_key = create_api_key(user["username"])
+    return {{
+        "api_key": api_key,
+        "type": "api_key",
+        "user": {{
+            "username": user["username"],
+            "roles": user.get("roles", [])
+        }},
+        "message": "Store this API key securely. Use it in X-API-Key header."
+    }}
+
+@app.get("/auth/me")
+async def get_current_user(
+    token: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    api_key: Optional[str] = Depends(api_key_header)
+):
+    """Get current authenticated user info"""
+    user = get_user_from_auth(
+        token=token.credentials if token else None,
+        api_key=api_key
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    return {{
+        "username": user["username"],
+        "email": user.get("email"),
+        "roles": user.get("roles", []),
+        "auth_method": user.get("auth_method", "unknown"),
+        "is_active": user.get("is_active", False)
+    }}
 '''
 
         # Generate endpoints
@@ -193,6 +257,124 @@ if __name__ == "__main__":
 '''
 
         return imports + app_setup + endpoint_code + main_runner
+    
+    def _generate_enhanced_endpoint(self, endpoint: Dict[str, Any]) -> str:
+        """Generate endpoint with enhanced authentication and role-based access control"""
+        function_name = endpoint.get('function_name', 'unknown_function').replace('-', '_').replace(' ', '_')
+        http_method = endpoint.get('http_method', 'POST').lower()
+        endpoint_path = endpoint.get('endpoint_path', f'/{endpoint.get("function_name", "unknown")}')
+        description = endpoint.get('description', 'AI-generated API endpoint')
+        needs_auth = endpoint.get('needs_auth', False)
+        auth_level = endpoint.get('auth_level', 'none')
+        
+        # Determine authentication requirements
+        auth_params = []
+        auth_check = ""
+        
+        if needs_auth or auth_level != 'none':
+            auth_params.extend([
+                "token: Optional[HTTPAuthorizationCredentials] = Depends(security)",
+                "api_key: Optional[str] = Depends(api_key_header)"
+            ])
+            
+            # Map auth levels to UserRole
+            role_mapping = {
+                'admin': 'UserRole.ADMIN',
+                'user': 'UserRole.USER', 
+                'readonly': 'UserRole.READONLY'
+            }
+            
+            required_role = role_mapping.get(auth_level, 'UserRole.READONLY')
+            
+            auth_check = f'''    # Enhanced authentication with role-based access control
+    user = get_user_from_auth(
+        token=token.credentials if token else None,
+        api_key=api_key
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Use JWT token or API key."
+        )
+    
+    # Check role permissions
+    if not check_user_permission(user, {required_role}):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions. Required role: {auth_level}"
+        )
+    '''
+        
+        # Handle parameters
+        input_validation = endpoint.get('input_validation', {})
+        required_params = input_validation.get('required_params', [])
+        
+        params = []
+        param_extraction = ""
+        
+        if required_params:
+            if http_method.upper() in ['POST', 'PUT', 'PATCH']:
+                # Use request body for POST/PUT/PATCH
+                clean_function_name = function_name.replace('-', '').replace(' ', '').replace('_', '')
+                request_model = f"{clean_function_name.title()}Request"
+                params.append(f"request: {request_model}")
+                
+                for param in required_params:
+                    param_extraction += f"        {param.get('name')} = request.{param.get('name')}\n"
+            else:
+                # Use query parameters for GET
+                for param in required_params:
+                    param_type = self._normalize_param_type(param.get('type', 'str'))
+                    params.append(f"{param.get('name')}: {param_type}")
+        
+        # Add auth parameters
+        params.extend(auth_params)
+        
+        params_str = ",\n    ".join(params)
+        if params_str:
+            params_str = f"\n    {params_str}\n"
+        
+        # Generate implementation
+        implementation = self._generate_function_implementation(function_name, required_params, needs_auth)
+        
+        # Auth info for response
+        auth_info = ""
+        if needs_auth or auth_level != 'none':
+            auth_info = '''        result["auth_info"] = {
+            "authenticated_user": user["username"],
+            "user_roles": user.get("roles", []),
+            "auth_method": user.get("auth_method", "unknown"),
+            "required_role": "''' + auth_level + '''"
+        }
+        '''
+        
+        return f'''
+# {description}
+@app.{http_method}("{endpoint_path}")
+async def {function_name}({params_str}):
+    """
+    {description}
+    
+    {"Authentication: " + ("Required - " + auth_level + " role" if auth_level != 'none' else "Not required")}
+    
+    Authentication Methods:
+    - JWT Token: Use Authorization: Bearer <token>
+    - API Key: Use X-API-Key: <api-key>
+    """
+{auth_check}    try:
+{param_extraction}{implementation}
+{auth_info}        
+        return result
+        
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=f"Invalid input parameters: {{str(ve)}}")
+    except ZeroDivisionError:
+        raise HTTPException(status_code=400, detail="Division by zero is not allowed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {{str(e)}}")
+
+'''
     
     def _generate_function_implementation(self, function_name: str, required_params: List[Dict], needs_auth: bool) -> str:
         """Generate the implementation for a specific function based on AI analysis"""
@@ -492,29 +674,70 @@ class APIResponse(BaseModel):
         return type_mapping.get(type_str.lower(), "float")
     
     def _generate_auth_file(self, analysis: Dict[str, Any]) -> str:
-        """Generate authentication module"""
+        """Generate enhanced authentication module with role-based access control"""
         
         template = """
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
+from fastapi.security import APIKeyHeader
+from enum import Enum
+
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+    READONLY = "readonly"
 
 # Configuration
-SECRET_KEY = "your-secret-key-change-in-production"
+SECRET_KEY = "your-secret-key-change-in-production-use-env-var"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Fake user database for demo
+# API Key authentication option
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Enhanced user database with roles
 fake_users_db = {
+    "admin": {
+        "username": "admin",
+        "email": "admin@example.com",
+        "hashed_password": pwd_context.hash("admin123"),
+        "is_active": True,
+        "roles": [UserRole.ADMIN, UserRole.USER, UserRole.READONLY]
+    },
+    "user": {
+        "username": "user",
+        "email": "user@example.com",
+        "hashed_password": pwd_context.hash("user123"),
+        "is_active": True,
+        "roles": [UserRole.USER, UserRole.READONLY]
+    },
     "demo": {
         "username": "demo",
         "email": "demo@example.com",
         "hashed_password": pwd_context.hash("demo"),
+        "is_active": True,
+        "roles": [UserRole.READONLY]
+    }
+}
+
+# API Keys database
+api_keys_db = {
+    "ak_admin_demo123": {
+        "username": "admin",
+        "roles": [UserRole.ADMIN, UserRole.USER, UserRole.READONLY],
+        "created_at": datetime.utcnow(),
+        "is_active": True
+    },
+    "ak_user_demo456": {
+        "username": "user", 
+        "roles": [UserRole.USER, UserRole.READONLY],
+        "created_at": datetime.utcnow(),
         "is_active": True
     }
 }
@@ -528,10 +751,28 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
-    \"\"\"Authenticate a user\"\"\"
+    \"\"\"Authenticate a user with username and password\"\"\"
     user = fake_users_db.get(username)
     if not user or not verify_password(password, user["hashed_password"]):
         return None
+    return user
+
+def verify_api_key(api_key: str) -> Optional[Dict[str, Any]]:
+    \"\"\"Verify API key and return user info\"\"\"
+    if not api_key:
+        return None
+        
+    key_info = api_keys_db.get(api_key)
+    if not key_info or not key_info.get("is_active"):
+        return None
+        
+    username = key_info["username"]
+    user = fake_users_db.get(username)
+    if user:
+        user = user.copy()
+        user["auth_method"] = "api_key"
+        user["roles"] = key_info["roles"]
+    
     return user
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -554,9 +795,50 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
         if username is None:
             return None
         user = fake_users_db.get(username)
+        if user:
+            user = user.copy()
+            user["auth_method"] = "jwt"
         return user
     except JWTError:
         return None
+
+def check_user_permission(user: Dict[str, Any], required_role: UserRole) -> bool:
+    \"\"\"Check if user has required role\"\"\"
+    if not user:
+        return False
+        
+    user_roles = user.get("roles", [])
+    
+    # Admin has all permissions
+    if UserRole.ADMIN in user_roles:
+        return True
+    
+    # Check specific role
+    return required_role in user_roles
+
+def get_user_from_auth(token: Optional[str] = None, api_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    \"\"\"Get user from either JWT token or API key\"\"\"
+    if api_key:
+        return verify_api_key(api_key)
+    elif token:
+        return verify_token(token)
+    return None
+
+def create_api_key(username: str) -> str:
+    \"\"\"Create a new API key for user\"\"\"
+    timestamp = int(datetime.utcnow().timestamp())
+    api_key = f"ak_{username}_{timestamp}"
+    
+    user = fake_users_db.get(username)
+    if user:
+        api_keys_db[api_key] = {
+            "username": username,
+            "roles": user.get("roles", [UserRole.READONLY]),
+            "created_at": datetime.utcnow(),
+            "is_active": True
+        }
+    
+    return api_key
 """
         
         return template
@@ -581,44 +863,49 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
         return "\n".join(requirements)
     
     def _generate_readme(self, analysis: Dict[str, Any], project_name: str) -> str:
-        """Generate README.md for the generated API"""
+        """Generate enhanced README.md for the generated API with authentication guide"""
         
         endpoints = analysis.get("api_endpoints", [])
-        auth_endpoints = [ep for ep in endpoints if ep.get("needs_auth")]
+        auth_endpoints = [ep for ep in endpoints if ep.get("needs_auth") or ep.get("auth_level", "none") != "none"]
+        admin_endpoints = [ep for ep in endpoints if ep.get("auth_level") == "admin"]
+        user_endpoints = [ep for ep in endpoints if ep.get("auth_level") == "user"] 
+        readonly_endpoints = [ep for ep in endpoints if ep.get("auth_level") == "readonly"]
         
         readme = f"""# {project_name.title()} API
 
-Auto-generated API from source code analysis using Code2API.
+Auto-generated API from source code analysis using Code2API with enhanced security.
 
 ## Features
 
 - **{len(endpoints)} API endpoints** automatically generated
-- **Authentication** using JWT tokens
+- **Role-based authentication** (Admin, User, ReadOnly)
+- **Multiple auth methods** (JWT tokens & API keys)
 - **Interactive documentation** with Swagger UI
 - **CORS enabled** for cross-origin requests
 - **Docker support** for easy deployment
+- **Enhanced security** with automatic threat detection
 
 ## Quick Start
 
 ### Installation
 
-```bash
+\\`\\`\\`bash
 pip install -r requirements.txt
-```
+\\`\\`\\`
 
 ### Running the API
 
-```bash
+\\`\\`\\`bash
 python main.py
-```
+\\`\\`\\`
 
 The API will be available at `http://localhost:8000`
 
 ### Docker Deployment
 
-```bash
+\\`\\`\\`bash
 docker-compose up --build
-```
+\\`\\`\\`
 
 ## API Documentation
 
@@ -626,51 +913,168 @@ docker-compose up --build
 - **ReDoc**: http://localhost:8000/redoc
 - **OpenAPI Schema**: http://localhost:8000/openapi.json
 
-## Authentication
+## Authentication & Authorization
 
-{len(auth_endpoints)} endpoints require authentication.
+This API uses **role-based access control** with three user roles:
 
-### Getting a Token
+### User Roles
+- **Admin**: Full access to all endpoints (including dangerous operations)
+- **User**: Access to data modification and most operations
+- **ReadOnly**: Access to read-only operations only
 
-```bash
-curl -X POST "http://localhost:8000/auth/token" \\
-     -H "Content-Type: application/json" \\
-     -d '{{"username": "demo", "password": "demo"}}'
-```
+### Endpoint Security
+- **{len(admin_endpoints)} Admin endpoints** (requires admin role)
+- **{len(user_endpoints)} User endpoints** (requires user role)  
+- **{len(readonly_endpoints)} ReadOnly endpoints** (requires readonly role)
+- **{len(endpoints) - len(auth_endpoints)} Public endpoints** (no authentication)
 
-### Using the Token
+### Authentication Methods
 
-```bash
-curl -X GET "http://localhost:8000/protected-endpoint" \\
-     -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
+#### 1. JWT Token Authentication
 
-## Available Endpoints
+**Get Token:**
+\\`\\`\\`bash
+curl -X POST "http://localhost:8000/auth/token" \\\\
+     -H "Content-Type: application/json" \\\\
+     -d '{{"username": "admin", "password": "admin123"}}'
+\\`\\`\\`
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-"""
-        
-        for endpoint in endpoints:
-            auth_required = "✅" if endpoint.get("needs_auth") else "❌"
-            readme += f"| {endpoint['http_method']} | `{endpoint['endpoint_path']}` | {endpoint['description']} | {auth_required} |\n"
-        
-        readme += f"""
-## Security Recommendations
+**Use Token:**
+\\`\\`\\`bash
+curl -X GET "http://localhost:8000/your-endpoint" \\\\
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+\\`\\`\\`
 
-{chr(10).join(f"- {rec}" for rec in analysis.get("security_recommendations", []))}
+#### 2. API Key Authentication
 
-## Optimization Suggestions
+**Create API Key:**
+\\`\\`\\`bash
+curl -X POST "http://localhost:8000/auth/api-key" \\\\
+     -H "Content-Type: application/json" \\\\
+     -d '{{"username": "admin", "password": "admin123"}}'
+\\`\\`\\`
 
-{chr(10).join(f"- {sug}" for sug in analysis.get("optimization_suggestions", []))}
+**Use API Key:**
+\\`\\`\\`bash
+curl -X GET "http://localhost:8000/your-endpoint" \\\\
+     -H "X-API-Key: YOUR_API_KEY"
+\\`\\`\\`
 
-## Generated by Code2API
+### Demo Credentials
 
-This API was automatically generated from source code analysis. 
-Modify the functions in `main.py` to implement your actual business logic.
-"""
+| Username | Password | Roles | Description |
+|----------|----------|-------|-------------|
+| admin | admin123 | Admin, User, ReadOnly | Full access to all endpoints |
+| user | user123 | User, ReadOnly | Can modify data but not admin operations |
+| demo | demo | ReadOnly | Read-only access only |
+
+### Demo API Keys
+
+For quick testing, these API keys are pre-configured:
+
+| API Key | Username | Roles |
+|---------|----------|-------|
+| ak_admin_demo123 | admin | Admin, User, ReadOnly |
+| ak_user_demo456 | user | User, ReadOnly |
+
+## Security Features
+
+- **Automatic threat detection** - Dangerous operations require admin authentication
+- **Role-based permissions** - Users only access what they're authorized for
+- **Multiple authentication methods** - JWT tokens and API keys supported
+- **Secure password hashing** - bcrypt with salt
+- **Token expiration** - JWT tokens expire after 30 minutes
+
+## Endpoint Examples
+
+### Public Endpoint (No Auth)
+\\`\\`\\`bash
+curl -X GET "http://localhost:8000/health"
+\\`\\`\\`
+
+### ReadOnly Endpoint
+\\`\\`\\`bash
+curl -X GET "http://localhost:8000/some-readonly-endpoint" \\\\
+     -H "X-API-Key: ak_admin_demo123"
+\\`\\`\\`
+
+### User Endpoint  
+\\`\\`\\`bash
+curl -X POST "http://localhost:8000/some-user-endpoint" \\\\
+     -H "Authorization: Bearer YOUR_TOKEN" \\\\
+     -H "Content-Type: application/json" \\\\
+     -d '{{"param": "value"}}'
+\\`\\`\\`
+
+### Admin Endpoint (Dangerous Operation)
+\\`\\`\\`bash
+curl -X DELETE "http://localhost:8000/some-admin-endpoint" \\\\
+     -H "Authorization: Bearer ADMIN_TOKEN"
+\\`\\`\\`
+
+## Error Responses
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Authentication required |
+| 403 | Insufficient permissions |  
+| 400 | Invalid input parameters |
+| 500 | Internal server error |
+
+## Development
+
+### Adding New Users
+
+Edit the fake_users_db in auth.py:
+
+\\`\\`\\`python
+fake_users_db["newuser"] = {{
+    "username": "newuser",
+    "email": "newuser@example.com", 
+    "hashed_password": pwd_context.hash("password"),
+    "is_active": True,
+    "roles": [UserRole.USER, UserRole.READONLY]
+}}
+\\`\\`\\`
+
+### Changing Authentication Requirements
+
+The system automatically detects authentication requirements based on function names:
+- Functions with 'delete', 'remove', 'admin' → **Admin role required**
+- Functions with 'create', 'update', 'modify' → **User role required**  
+- Functions with 'get', 'read', 'list' → **ReadOnly role required**
+- Computational functions → **No authentication**
+
+## Security Notes
+
+⚠️ **Important**: Change the SECRET_KEY in production!
+
+⚠️ **Production**: Replace the demo user database with a real database.
+
+⚠️ **HTTPS**: Always use HTTPS in production for secure token transmission.
+
+## Support
+
+Generated by Code2API - Intelligent code-to-API conversion with enhanced security."""
         
         return readme
+    
+    def _normalize_param_type(self, type_str: str) -> str:
+        """Normalize parameter types for FastAPI"""
+        type_mapping = {
+            "string": "str",
+            "int": "int", 
+            "integer": "int",
+            "float": "float",
+            "number": "float",
+            "bool": "bool",
+            "boolean": "bool",
+            "list": "List[Any]",
+            "dict": "Dict[str, Any]",
+            "any": "float"  # Default unknown types to float for better API usability
+        }
+        
+        return type_mapping.get(type_str.lower(), "float")
     
     def _generate_dockerfile(self) -> str:
         """Generate Dockerfile"""
